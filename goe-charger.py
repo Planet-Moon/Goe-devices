@@ -47,7 +47,7 @@ class GOE_Charger:
         pass
 
     def power_to_amp(self,power:float):
-        """Calculate amps from power.
+        """Calculate amps from power for 3 phase ac.
 
         Args:
             power (float): power in watts
@@ -55,7 +55,7 @@ class GOE_Charger:
         Returns:
             float: amps in ampere
         """
-        u_eff = 400*math.sqrt(3)
+        u_eff = 3*230
         i = power/u_eff
         return i
 
