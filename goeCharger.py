@@ -29,7 +29,7 @@ class GOE_Charger:
 
     @property
     def car(self):
-        self.data.get("car")
+        return self.data.get("car")
 
     @property
     def alw(self):
