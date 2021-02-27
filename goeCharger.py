@@ -29,7 +29,7 @@ class GOE_Charger:
 
     @property
     def car(self):
-        return True if self.data.get("car") > 1 else False
+        self.data.get("car")
 
     @property
     def alw(self):
