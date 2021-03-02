@@ -4,9 +4,13 @@ import threading
 import time
 import math
 import paho.mqtt.client as mqtt
+import logging
 
 from SMA_SunnyBoy import SMA_SunnyBoy
 from TelegramBot import TelegramBot
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # for testing purposes:
 import random
@@ -15,17 +19,29 @@ def test_power():
 ###
 
 class GOE_Charger:
-    def __init__(self,address:str,mqtt_topic="",mqtt_server="",mqtt_port=1883):
+    def __init__(self,address:str,mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
         self.address = address
         self.power_threshold = -1
-        if mqtt_topic and mqtt_server and mqtt_port:
+        if mqtt_topic and mqtt_broker and mqtt_port:
             self.mqtt_topic = mqtt_topic
-            self.mqtt_client = mqtt.Client()
+            self.mqtt_broker = mqtt_broker
+            self.mqtt_port = mqtt_port
+            self.mqtt_transport = mqtt_transport
+            self.mqtt_path = mqtt_path
+            if self.mqtt_transport:
+                self.mqtt_client = mqtt.Client(self.mqtt_transport)
+                self.mqtt_client.ws_set_options(path=self.mqtt_path, headers=None)
+            else:
+                self.mqtt_client = mqtt.Client()
             self.mqtt_client.on_connect = self.mqtt_on_connect
             self.mqtt_client.on_message = self.mqtt_on_message
-            self.mqtt_client.connect_async(mqtt_server,mqtt_port,60)
+            self.mqtt_client.connect_async(self.mqtt_broker,self.mqtt_port,60)
             self.mqtt_client.loop_start()
-            print(self.mqtt_client.is_connected())
+            timeout = 0
+            while not self.mqtt_client.is_connected() or timeout > 5:
+                logger.info("Trying to connect to mqtt broker")
+                timeout += 1
+                time.sleep(5)
 
     # The callback for when the client receives a CONNACK response from the server.
     def mqtt_on_connect(self, client, userdata, flags, rc):
