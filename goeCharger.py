@@ -3,6 +3,7 @@ import json
 import threading
 import time
 import math
+import paho.mqtt.client as mqtt
 
 from SMA_SunnyBoy import SMA_SunnyBoy
 from TelegramBot import TelegramBot
@@ -14,9 +15,29 @@ def test_power():
 ###
 
 class GOE_Charger:
-    def __init__(self,address:str):
+    def __init__(self,address:str,mqtt_topic:str,mqtt_server:str,mqtt_port=1883):
         self.address = address
         self.power_threshold = -1
+        self.mqtt_topic = mqtt_topic
+        self.mqtt_client = mqtt.Client()
+        self.mqtt_client.on_connect = self.mqtt_on_connect
+        self.mqtt_client.on_message = self.mqtt_on_message
+        self.mqtt_client.connect_async(mqtt_server,mqtt_port,60)
+
+    # The callback for when the client receives a CONNACK response from the server.
+    def mqtt_on_connect(self, client, userdata, flags, rc):
+        print("Connected with result code "+str(rc))
+
+        # Subscribing in on_connect() means that if we lose the connection and
+        # reconnect then subscriptions will be renewed.
+        self.mqtt_client.subscribe(self.mqtt_topic)
+
+    # The callback for when a PUBLISH message is received from the server.
+    def mqtt_on_message(self, client, userdata, msg):
+        print(msg.topic+" "+str(msg.payload))
+
+    def mqtt_publish(self, payload=None, qos=0, retain=False):
+        self.mqtt_client.publish(self.mqtt_topic, payload, qos, retain)
 
     @property
     def data(self):
@@ -145,7 +166,7 @@ class Goe_TelegramBot(TelegramBot):
 def main():
     sunny_inverter = Inverter("192.168.178.128")
     goe_charger = GOE_Charger('http://192.168.178.106')
-    goe_charger.init_amp_from_power(sunny_inverter.modbus.read_value)
+    goe_charger.init_amp_from_power(sunny_inverter.read_value)
 
     # .gitignore
     telegramBot = Goe_TelegramBot('1628918536:AAHgSqaz71agbfvP9159vA5DCdKgB7lg8GE') # schwanzuslongus_bot
