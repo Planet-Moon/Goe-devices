@@ -44,11 +44,21 @@ class GOE_Charger:
                 logger.info("Trying to connect to mqtt broker")
                 timeout += 1
                 time.sleep(5)
-            asyncio.run(self.update_loop())
+            self.mqtt_loop_run = None
+            self.mqtt_loop_running = None
+
+
+    def start_loop(self):
+        self.mqtt_loop_run = True
+        asyncio.run(self.update_loop())
+
+    def stop_loop(self):
+        self.mqtt_loop_run = False
 
     # BUG This could hinder the django page from loading
     async def update_loop(self):
-        while True:
+        while self.mqtt_loop_run:
+            self.mqtt_loop_running = False
             payload = json.dumps({"status":"car","args":self.car})
             self.mqtt_publish(payload)
             payload = json.dumps({"status":"amp","args":self.amp})
@@ -60,6 +70,7 @@ class GOE_Charger:
             payload = json.dumps({"status":"min-amp","args":self.power_threshold})
             self.mqtt_publish(payload)
             await asyncio.sleep(60)
+        self.mqtt_loop_running = False
 
     @property
     def mqtt_connected(self):
