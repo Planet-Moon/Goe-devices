@@ -46,18 +46,20 @@ class GOE_Charger:
                 time.sleep(5)
             asyncio.run(self.update_loop())
 
+    # BUG This could hinder the django page from loading
     async def update_loop(self):
-        payload = json.dumps({"status":"car","args":self.car})
-        self.mqtt_publish(payload)
-        payload = json.dumps({"status":"amp","args":self.amp})
-        self.mqtt_publish(payload)
-        payload = json.dumps({"status":"nrg","args":self.nrg})
-        self.mqtt_publish(payload)
-        payload = json.dumps({"status":"alw","args":self.alw})
-        self.mqtt_publish(payload)
-        payload = json.dumps({"status":"min-amp","args":self.power_threshold})
-        self.mqtt_publish(payload)
-        await asyncio.sleep(2)
+        while True:
+            payload = json.dumps({"status":"car","args":self.car})
+            self.mqtt_publish(payload)
+            payload = json.dumps({"status":"amp","args":self.amp})
+            self.mqtt_publish(payload)
+            payload = json.dumps({"status":"nrg","args":self.nrg})
+            self.mqtt_publish(payload)
+            payload = json.dumps({"status":"alw","args":self.alw})
+            self.mqtt_publish(payload)
+            payload = json.dumps({"status":"min-amp","args":self.power_threshold})
+            self.mqtt_publish(payload)
+            await asyncio.sleep(60)
 
     @property
     def mqtt_connected(self):
@@ -68,7 +70,7 @@ class GOE_Charger:
 
     # The callback for when the client receives a CONNACK response from the server.
     def mqtt_on_connect(self, client, userdata, flags, rc):
-        print("Connected with result code "+str(rc))
+        logger.info("Connected with result code "+str(rc))
 
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
@@ -76,16 +78,13 @@ class GOE_Charger:
 
     # The callback for when a PUBLISH message is received from the server.
     def mqtt_on_message(self, client, userdata, msg):
-        print(msg.topic+" "+str(msg.payload))
+        logger.info(msg.topic+" "+str(msg.payload))
         data = None
         try:
             data = json.loads(msg.payload)
         except:
             pass
         if data:
-            for key, value in data.items():
-                print(str(key) +": "+ str(value))
-
             if data.get("command") == "alw":
                 self.alw = bool(data.get("args"))
                 self.alw = False
