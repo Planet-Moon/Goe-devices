@@ -19,7 +19,7 @@ def test_power():
 ###
 
 class GOE_Charger:
-    def __init__(self,name:str,address:str,mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
+    def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
         self.name = name
         self.address = address
         self.power_threshold = -1
