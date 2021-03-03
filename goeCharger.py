@@ -53,6 +53,7 @@ class GOE_Charger:
         self.update_loop()
 
     def stop_loop(self):
+        self.mqtt_client.loop_stop()
         self.mqtt_loop_run = False
 
     # BUG This could hinder the django page from loading
@@ -96,22 +97,22 @@ class GOE_Charger:
         except:
             pass
         if data:
-            if data.get("command") == "alw":
-                self.alw = bool(data.get("args"))
-                self.alw = False
-                pass
+            keys =  data.keys()
+            if "command" in keys:
+                if data.get("command") == "alw":
+                    self.alw = bool(data.get("args"))
+                    self.alw = False
+                    pass
 
-            if data.get("command") == "amp":
-                amp_setting = int(data.get("args"))
-                if amp_setting <= 16 and amp_setting >=6:
-                    self.amp = amp_setting
+                if data.get("command") == "amp":
+                    amp_setting = int(data.get("args"))
+                    if amp_setting <= 16 and amp_setting >=6:
+                        self.amp = amp_setting
 
-            if data.get("command") == "min-amp":
-                min_amp_setting = int(data.get("args"))
-                if min_amp_setting <= 16 and min_amp_setting >=6:
-                    self.power_threshold = min_amp_setting
-
-        return
+                if data.get("command") == "min-amp":
+                    min_amp_setting = int(data.get("args"))
+                    if min_amp_setting <= 16 and min_amp_setting >=6:
+                        self.power_threshold = min_amp_setting
 
     def mqtt_publish(self, payload=None, qos=0, retain=False):
         return self.mqtt_client.publish(self.mqtt_topic, payload, qos, retain)
