@@ -4,6 +4,7 @@ import threading
 import time
 import math
 import paho.mqtt.client as mqtt
+import asyncio
 import logging
 
 from SMA_SunnyBoy import SMA_SunnyBoy
@@ -22,6 +23,7 @@ class GOE_Charger:
     def __init__(self,address:str,mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
         self.address = address
         self.power_threshold = -1
+        self.mqtt_enabled = False
         if mqtt_topic and mqtt_broker and mqtt_port:
             self.mqtt_topic = mqtt_topic
             self.mqtt_broker = mqtt_broker
@@ -38,10 +40,31 @@ class GOE_Charger:
             self.mqtt_client.connect_async(self.mqtt_broker,self.mqtt_port,60)
             self.mqtt_client.loop_start()
             timeout = 0
-            while not self.mqtt_client.is_connected() or timeout > 5:
+            while not self.mqtt_connected or timeout > 5:
                 logger.info("Trying to connect to mqtt broker")
                 timeout += 1
                 time.sleep(5)
+            asyncio.run(self.update_loop())
+
+    async def update_loop(self):
+        payload = json.dumps({"status":"car","args":self.car})
+        self.mqtt_publish(payload)
+        payload = json.dumps({"status":"amp","args":self.amp})
+        self.mqtt_publish(payload)
+        payload = json.dumps({"status":"nrg","args":self.nrg})
+        self.mqtt_publish(payload)
+        payload = json.dumps({"status":"alw","args":self.alw})
+        self.mqtt_publish(payload)
+        payload = json.dumps({"status":"min-amp","args":self.power_threshold})
+        self.mqtt_publish(payload)
+        await asyncio.sleep(2)
+
+    @property
+    def mqtt_connected(self):
+        try:
+            return self.mqtt_client.is_connected()
+        except:
+            return False
 
     # The callback for when the client receives a CONNACK response from the server.
     def mqtt_on_connect(self, client, userdata, flags, rc):
@@ -54,6 +77,31 @@ class GOE_Charger:
     # The callback for when a PUBLISH message is received from the server.
     def mqtt_on_message(self, client, userdata, msg):
         print(msg.topic+" "+str(msg.payload))
+        data = None
+        try:
+            data = json.loads(msg.payload)
+        except:
+            pass
+        if data:
+            for key, value in data.items():
+                print(str(key) +": "+ str(value))
+
+            if data.get("command") == "alw":
+                self.alw = bool(data.get("args"))
+                self.alw = False
+                pass
+
+            if data.get("command") == "amp":
+                amp_setting = int(data.get("args"))
+                if amp_setting <= 16 and amp_setting >=6:
+                    self.amp = amp_setting
+
+            if data.get("command") == "min-amp":
+                min_amp_setting = int(data.get("args"))
+                if min_amp_setting <= 16 and min_amp_setting >=6:
+                    self.power_threshold = min_amp_setting
+
+        return
 
     def mqtt_publish(self, payload=None, qos=0, retain=False):
         return self.mqtt_client.publish(self.mqtt_topic, payload, qos, retain)
@@ -75,11 +123,17 @@ class GOE_Charger:
     def alw(self):
         return True if self.data.get("alw") == "1" else False
 
-    def set_alw(self, value:bool):
+    @alw.setter
+    def alw(self, value:bool):
         self._set("alw",int(value))
 
-    def set_amp(self, value:int):
+    @amp.setter
+    def amp(self, value:int):
         self._set("amp",int(value))
+
+    @property
+    def nrg(self):
+        return self.data.get("nrg")[11]*10
 
     def _set(self,key:str,value):
         address = self.address +"/mqtt?payload="+key+"="+str(value)
