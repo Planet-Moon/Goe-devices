@@ -4,7 +4,6 @@ import threading
 import time
 import math
 import paho.mqtt.client as mqtt
-import asyncio
 import logging
 
 from SMA_SunnyBoy import SMA_SunnyBoy
@@ -20,7 +19,8 @@ def test_power():
 ###
 
 class GOE_Charger:
-    def __init__(self,address:str,mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
+    def __init__(self,name:str,address:str,mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
+        self.name = name
         self.address = address
         self.power_threshold = -1
         self.mqtt_enabled = False
@@ -50,13 +50,13 @@ class GOE_Charger:
 
     def start_loop(self):
         self.mqtt_loop_run = True
-        asyncio.run(self.update_loop())
+        self.update_loop()
 
     def stop_loop(self):
         self.mqtt_loop_run = False
 
     # BUG This could hinder the django page from loading
-    async def update_loop(self):
+    def update_loop(self):
         while self.mqtt_loop_run:
             self.mqtt_loop_running = False
             payload = json.dumps({"status":"car","args":self.car})
@@ -69,7 +69,7 @@ class GOE_Charger:
             self.mqtt_publish(payload)
             payload = json.dumps({"status":"min-amp","args":self.power_threshold})
             self.mqtt_publish(payload)
-            await asyncio.sleep(60)
+            time.sleep(10)
         self.mqtt_loop_running = False
 
     @property
