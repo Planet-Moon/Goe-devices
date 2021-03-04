@@ -123,8 +123,10 @@ class GOE_Charger:
     def data(self):
         try:
             r = requests.get(self.address+"/status")
+            self.http_connection = True
         except requests.exceptions.Connection as e:
             logger.error("Connection error: %s", e)
+            self.http_connection = False
         return json.loads(r.text)
 
     @property
@@ -155,8 +157,10 @@ class GOE_Charger:
         address = self.address +"/mqtt?payload="+key+"="+str(value)
         try:
             r = requests.get(address)
+            self.http_connection = True
         except requests.exceptions.Connection as e:
             logger.error("Connection error: %s", e)
+            self.http_connection = False
         pass
 
     def power_to_amp(self,power:float):
