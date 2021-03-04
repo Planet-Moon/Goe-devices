@@ -16,16 +16,19 @@ if websocket:
     mqtt_path = ""
 
 goe_charger = GoeCharger(
-    ipAddress,
-    mqtt_topic,
-    mqtt_broker,
-    mqtt_port,
-    mqtt_transport,
-    mqtt_path,
+    address=ipAddress,
+    mqtt_topic=mqtt_topic,
+    mqtt_broker=mqtt_broker,
+    mqtt_port=mqtt_port,
+    mqtt_transport=mqtt_transport,
+    mqtt_path=mqtt_path,
     )
 
+goe_charger.mqtt_publish("hello world")
+# goe_charger.start_loop()
+
 for i in range(5):
-    print(goe_charger.mqtt_publish("hello world"))
+    print(goe_charger.mqtt_publish("test "+str(i)))
     time.sleep(1)
 
 while True:
