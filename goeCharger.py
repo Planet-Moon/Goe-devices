@@ -24,6 +24,7 @@ class GOE_Charger:
         self.address = address
         self.power_threshold = -1
         self.mqtt_enabled = False
+        self.http_connection = None
         if mqtt_topic and mqtt_broker and mqtt_port:
             self.mqtt_topic = mqtt_topic
             self.mqtt_broker = mqtt_broker
@@ -56,10 +57,11 @@ class GOE_Charger:
         self.mqtt_client.loop_stop()
         self.mqtt_loop_run = False
 
-    # BUG This could hinder the django page from loading
     def update_loop(self):
         while self.mqtt_loop_run:
-            self.mqtt_loop_running = False
+            self.mqtt_loop_running = True
+            payload = json.dumps({"status":"httpc","args":self.http_connection})
+            self.mqtt_publish(payload)
             payload = json.dumps({"status":"car","args":self.car})
             self.mqtt_publish(payload)
             payload = json.dumps({"status":"amp","args":self.amp})
@@ -119,7 +121,10 @@ class GOE_Charger:
 
     @property
     def data(self):
-        r = requests.get(self.address+"/status")
+        try:
+            r = requests.get(self.address+"/status")
+        except requests.exceptions.Connection as e:
+            logger.error("Connection error: %s", e)
         return json.loads(r.text)
 
     @property
@@ -148,7 +153,10 @@ class GOE_Charger:
 
     def _set(self,key:str,value):
         address = self.address +"/mqtt?payload="+key+"="+str(value)
-        r = requests.get(address)
+        try:
+            r = requests.get(address)
+        except requests.exceptions.Connection as e:
+            logger.error("Connection error: %s", e)
         pass
 
     def power_to_amp(self,power:float):
