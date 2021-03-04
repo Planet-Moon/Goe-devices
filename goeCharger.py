@@ -124,10 +124,11 @@ class GOE_Charger:
         try:
             r = requests.get(self.address+"/status")
             self.http_connection = True
+            return json.loads(r.text)
         except requests.exceptions.ConnectionError as e:
             logger.error("Connection error: %s", e)
             self.http_connection = False
-        return json.loads(r.text)
+            return None
 
     @property
     def amp(self):
