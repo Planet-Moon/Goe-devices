@@ -61,21 +61,23 @@ class GOE_Charger:
         while self.mqtt_loop_run:
             self.mqtt_loop_running = True
             if self.mqtt_connected:
-                payload = json.dumps({"status":"httpc","args":self.http_connection})
-                self.mqtt_publish(payload)
-                payload = json.dumps({"status":"car","args":self.car})
+                topic = self.mqtt_topic+"/status"
+
+                self.mqtt_publish(topic+"/httpc",self.http_connection,retain=True)
+
+                self.mqtt_publish(topic+"/car",self.car)
                 if not self.http_connection:
                     continue
-                self.mqtt_publish(payload)
-                payload = json.dumps({"status":"amp","args":self.amp})
-                self.mqtt_publish(payload)
-                payload = json.dumps({"status":"nrg","args":self.nrg})
-                self.mqtt_publish(payload)
-                payload = json.dumps({"status":"alw","args":self.alw})
-                self.mqtt_publish(payload)
-                payload = json.dumps({"status":"min-amp","args":self.power_threshold})
-                self.mqtt_publish(payload)
-            time.sleep(10)
+
+                self.mqtt_publish(topic+"/amp",self.amp)
+
+                self.mqtt_publish(topic+"/nrg",self.nrg)
+
+                self.mqtt_publish(topic+"/alw",self.alw)
+
+                self.mqtt_publish(topic+"/min-amp",self.power_threshold)
+
+            time.sleep(5)
         self.mqtt_loop_running = False
 
     @property
@@ -91,35 +93,35 @@ class GOE_Charger:
 
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
-        self.mqtt_client.subscribe(self.mqtt_topic+"/#")
+        self.mqtt_client.subscribe(self.mqtt_topic+"/command/#")
 
     # The callback for when a PUBLISH message is received from the server.
     def mqtt_on_message(self, client, userdata, msg):
         logger.info(msg.topic+" "+str(msg.payload))
-        data = None
-        try:
-            data = json.loads(msg.payload)
-        except:
-            pass
+        data = msg.payload
+        topic = msg.topic
+        topics = topic.split("/")
         if data:
-            keys =  data.keys()
-            if "command" in keys:
-                if data.get("command") == "alw":
-                    self.alw = bool(data.get("args"))
+            if "command" in topics[-2]:
+                if "alw" in topics[-1]:
+                    self.alw = bool(data)
                     pass
 
-                if data.get("command") == "amp":
-                    amp_setting = int(data.get("args"))
+                if "amp" in topics[-1]:
+                    amp_setting = int(data)
                     if amp_setting <= 16 and amp_setting >=6:
                         self.amp = amp_setting
 
-                if data.get("command") == "min-amp":
-                    min_amp_setting = int(data.get("args"))
+                if "min-amp" in topics[-1]:
+                    min_amp_setting = int(data)
                     if min_amp_setting <= 16 and min_amp_setting >=6:
                         self.power_threshold = min_amp_setting
 
-    def mqtt_publish(self, payload=None, qos=0, retain=False):
-        return self.mqtt_client.publish(self.mqtt_topic, payload, qos, retain)
+    def mqtt_publish(self, topic=None, payload=None, qos=0, retain=False):
+        if topic is None:
+            topic = self.mqtt_topic
+        logger.info("Publishing: %s %s %s %s", topic, payload, qos, retain)
+        return self.mqtt_client.publish(topic, payload, qos, retain)
 
     @property
     def data(self):
