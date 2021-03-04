@@ -138,24 +138,32 @@ class GOE_Charger:
         data = self.data
         if data:
             return data.get("amp")
+        else:
+            return None
 
     @property
     def car(self):
         data = self.data
         if data:
             return data.get("car")
+        else:
+            return None
 
     @property
     def alw(self):
         data = self.data
         if data:
             return True if data.get("alw") == "1" else False
+        else:
+            return None
 
     @property
     def nrg(self):
         data = self.data
         if data:
-            return data.get("nrg")[11]*10
+            return data.get("nrg")[11]*10 # Watts
+        else:
+            return None
 
     @alw.setter
     def alw(self, value:bool):
