@@ -32,5 +32,6 @@ for i in range(5):
 
 while True:
     time.sleep(10)
+    print(goe_charger.alw)
     print(goe_charger.mqtt_publish("ping"))
 pass
