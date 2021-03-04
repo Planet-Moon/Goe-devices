@@ -24,7 +24,6 @@ goe_charger = GoeCharger(
     mqtt_path=mqtt_path,
     )
 
-goe_charger.mqtt_publish("hello world")
 # goe_charger.start_loop()
 
 for i in range(5):
@@ -33,4 +32,5 @@ for i in range(5):
 
 while True:
     time.sleep(10)
+    print(goe_charger.mqtt_publish("ping"))
 pass
