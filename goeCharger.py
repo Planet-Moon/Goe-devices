@@ -41,7 +41,7 @@ class GOE_Charger:
             self.mqtt_client.connect_async(self.mqtt_broker,self.mqtt_port,60)
             self.mqtt_client.loop_start()
             timeout = 0
-            while not self.mqtt_connected or timeout > 5:
+            while not self.mqtt_connected and timeout < 5:
                 logger.info("Trying to connect to mqtt broker")
                 timeout += 1
                 time.sleep(5)
@@ -60,18 +60,19 @@ class GOE_Charger:
     def update_loop(self):
         while self.mqtt_loop_run:
             self.mqtt_loop_running = True
-            payload = json.dumps({"status":"httpc","args":self.http_connection})
-            self.mqtt_publish(payload)
-            payload = json.dumps({"status":"car","args":self.car})
-            self.mqtt_publish(payload)
-            payload = json.dumps({"status":"amp","args":self.amp})
-            self.mqtt_publish(payload)
-            payload = json.dumps({"status":"nrg","args":self.nrg})
-            self.mqtt_publish(payload)
-            payload = json.dumps({"status":"alw","args":self.alw})
-            self.mqtt_publish(payload)
-            payload = json.dumps({"status":"min-amp","args":self.power_threshold})
-            self.mqtt_publish(payload)
+            if self.mqtt_connected:
+                payload = json.dumps({"status":"httpc","args":self.http_connection})
+                self.mqtt_publish(payload)
+                payload = json.dumps({"status":"car","args":self.car})
+                self.mqtt_publish(payload)
+                payload = json.dumps({"status":"amp","args":self.amp})
+                self.mqtt_publish(payload)
+                payload = json.dumps({"status":"nrg","args":self.nrg})
+                self.mqtt_publish(payload)
+                payload = json.dumps({"status":"alw","args":self.alw})
+                self.mqtt_publish(payload)
+                payload = json.dumps({"status":"min-amp","args":self.power_threshold})
+                self.mqtt_publish(payload)
             time.sleep(10)
         self.mqtt_loop_running = False
 
@@ -103,7 +104,6 @@ class GOE_Charger:
             if "command" in keys:
                 if data.get("command") == "alw":
                     self.alw = bool(data.get("args"))
-                    self.alw = False
                     pass
 
                 if data.get("command") == "amp":
@@ -124,7 +124,7 @@ class GOE_Charger:
         try:
             r = requests.get(self.address+"/status")
             self.http_connection = True
-        except requests.exceptions.Connection as e:
+        except requests.exceptions.ConnectionError as e:
             logger.error("Connection error: %s", e)
             self.http_connection = False
         return json.loads(r.text)
@@ -158,7 +158,7 @@ class GOE_Charger:
         try:
             r = requests.get(address)
             self.http_connection = True
-        except requests.exceptions.Connection as e:
+        except requests.exceptions.ConnectionError as e:
             logger.error("Connection error: %s", e)
             self.http_connection = False
         pass
