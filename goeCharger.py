@@ -121,26 +121,41 @@ class GOE_Charger:
 
     @property
     def data(self):
+        r = None
         try:
             r = requests.get(self.address+"/status")
             self.http_connection = True
-            return json.loads(r.text)
         except requests.exceptions.ConnectionError as e:
             logger.error("Connection error: %s", e)
             self.http_connection = False
+        if r:
+            return json.loads(r.text)
+        else:
             return None
 
     @property
     def amp(self):
-        return self.data.get("amp")
+        data = self.data
+        if data:
+            return data.get("amp")
 
     @property
     def car(self):
-        return self.data.get("car")
+        data = self.data
+        if data:
+            return data.get("car")
 
     @property
     def alw(self):
-        return True if self.data.get("alw") == "1" else False
+        data = self.data
+        if data:
+            return True if data.get("alw") == "1" else False
+
+    @property
+    def nrg(self):
+        data = self.data
+        if data:
+            return data.get("nrg")[11]*10
 
     @alw.setter
     def alw(self, value:bool):
@@ -149,10 +164,6 @@ class GOE_Charger:
     @amp.setter
     def amp(self, value:int):
         self._set("amp",int(value))
-
-    @property
-    def nrg(self):
-        return self.data.get("nrg")[11]*10
 
     def _set(self,key:str,value):
         address = self.address +"/mqtt?payload="+key+"="+str(value)
