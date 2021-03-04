@@ -64,6 +64,8 @@ class GOE_Charger:
                 payload = json.dumps({"status":"httpc","args":self.http_connection})
                 self.mqtt_publish(payload)
                 payload = json.dumps({"status":"car","args":self.car})
+                if not self.http_connection:
+                    continue
                 self.mqtt_publish(payload)
                 payload = json.dumps({"status":"amp","args":self.amp})
                 self.mqtt_publish(payload)
