@@ -98,21 +98,22 @@ class GOE_Charger:
     # The callback for when a PUBLISH message is received from the server.
     def mqtt_on_message(self, client, userdata, msg):
         logger.info(msg.topic+" "+str(msg.payload))
-        data = msg.payload
+        data = msg.payload.decode("utf-8")
         topic = msg.topic
         topics = topic.split("/")
         if data:
             if "command" in topics[-2]:
-                if "alw" in topics[-1]:
+                if "alw" == topics[-1]:
+                    data = True if data == "True" else False
                     self.alw = bool(data)
                     pass
 
-                if "amp" in topics[-1]:
+                if "amp" == topics[-1]:
                     amp_setting = int(data)
                     if amp_setting <= 16 and amp_setting >=6:
                         self.amp = amp_setting
 
-                if "min-amp" in topics[-1]:
+                if "min-amp" == topics[-1]:
                     min_amp_setting = int(data)
                     if min_amp_setting <= 16 and min_amp_setting >=6:
                         self.power_threshold = min_amp_setting
