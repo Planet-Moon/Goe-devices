@@ -2,7 +2,7 @@ from goeCharger import GOE_Charger as GoeCharger
 import time
 
 ipAddress = "http://192.168.178.106"
-mqtt_topic = "/home_test_server/goe_charger/GoeCharger1"
+mqtt_topic = "home_test_server/goe_charger/GoeCharger1"
 # mqtt_broker = "broker.hivemq.com"
 mqtt_broker = "192.168.178.107"
 mqtt_port = 1883 # TCP
