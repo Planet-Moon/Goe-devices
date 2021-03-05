@@ -65,17 +65,17 @@ class GOE_Charger:
 
                 self.mqtt_publish(topic+"/httpc",self.http_connection,retain=True)
 
-                self.mqtt_publish(topic+"/car",self.car)
+                self.mqtt_publish(topic+"/car",self.car,retain=True)
                 if not self.http_connection:
                     continue
 
-                self.mqtt_publish(topic+"/amp",self.amp)
+                self.mqtt_publish(topic+"/amp",self.amp,retain=True)
 
-                self.mqtt_publish(topic+"/nrg",self.nrg)
+                self.mqtt_publish(topic+"/nrg",self.nrg,retain=True)
 
-                self.mqtt_publish(topic+"/alw",self.alw)
+                self.mqtt_publish(topic+"/alw",self.alw,retain=True)
 
-                self.mqtt_publish(topic+"/min-amp",self.power_threshold)
+                self.mqtt_publish(topic+"/min-amp",self.power_threshold,retain=True)
 
             time.sleep(5)
         self.mqtt_loop_running = False
