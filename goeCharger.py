@@ -26,7 +26,6 @@ class Control_thread(threading.Thread):
         self.state = "Not started"
         self._run = True
         self.period_time = period_time
-        self.min_amp = min_amp
         threading.Thread.__init__(self, name="control_thread")
 
     def stop(self):
@@ -54,7 +53,7 @@ class Control_thread(threading.Thread):
                 self.state = "auto"
 
             if self.state == "auto":
-                if amps >= self.min_amp and self.min_amp >= 0:
+                if amps >= self.goe_charger.min_amp and self.goe_charger.min_amp >= 0:
                     control_active = True
                     # self.set_alw(True)
                     self.goe_charger.amp = amps
@@ -64,7 +63,7 @@ class Control_thread(threading.Thread):
                 else:
                     control_active = False
                     self.goe_charger.alw = False
-                    self.goe_charger.amp = self.min_amp
+                    self.goe_charger.amp = self.goe_charger.min_amp
                     if charging:
                         logger.info("Stopped charging")
                         charging = False
@@ -80,7 +79,8 @@ class GOE_Charger:
         self.name = name
         self.address = address
         self.control_thread = Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128")
-        self.power_threshold = -1
+        self.control_mode = "on" if self.alw else "off"
+        self.min_amp = -1
         self.mqtt_enabled = False
         self.http_connection = None
         if mqtt_topic and mqtt_broker and mqtt_port:
@@ -133,7 +133,9 @@ class GOE_Charger:
 
                 self.mqtt_publish(topic+"/alw",self.alw,retain=True)
 
-                self.mqtt_publish(topic+"/min-amp",self.power_threshold,retain=True)
+                self.mqtt_publish(topic+"/min-amp",self.min_amp,retain=True)
+
+                self.mqtt_publish(topic+"/control-mode",self.control_mode,retain=True)
 
             time.sleep(5)
         self.mqtt_loop_running = False
@@ -183,17 +185,20 @@ class GOE_Charger:
                     except ValueError:
                         return
                     if min_amp_setting <= 16 and min_amp_setting >=6:
-                        self.power_threshold = min_amp_setting
+                        self.min_amp = min_amp_setting
 
                 if "control-mode" == topics[-1]:
                     if data == "on":
                         self.control_thread.stop()
                         self.alw = True
+                        self.control_mode = "on"
                     if data == "off":
                         self.control_thread.stop()
                         self.alw = False
+                        self.control_mode = "off"
                     if data == "solar":
                         self.control_thread.start()
+                        self.control_mode = "solar"
 
 
     def mqtt_publish(self, topic=None, payload=None, qos=0, retain=False):
