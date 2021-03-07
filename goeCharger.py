@@ -5,6 +5,7 @@ import time
 import math
 import paho.mqtt.client as mqtt
 import logging
+import threading
 
 from SMA_SunnyBoy import SMA_SunnyBoy
 from TelegramBot import TelegramBot
@@ -17,6 +18,13 @@ import random
 def test_power():
     return random.uniform(4000, 8000)
 ###
+
+class ControlTask(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self, name="control_thread")
+
+    def run(self):
+        pass
 
 class GOE_Charger:
     def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
@@ -299,7 +307,8 @@ def main():
     goe_charger.init_amp_from_power(sunny_inverter.read_value)
 
     # .gitignore
-    telegramBot = Goe_TelegramBot('1628918536:AAHgSqaz71agbfvP9159vA5DCdKgB7lg8GE') # schwanzuslongus_bot
+    import _creds
+    telegramBot = Goe_TelegramBot(_creds.telegramBot_Token)
     telegramBot.goe_charger = goe_charger
     goe_charger.telegramBot = telegramBot
     r = telegramBot.setMyCommands([{"command":"hello", "description":"Say hello"},{"command":"test", "description":"Say test"}])
