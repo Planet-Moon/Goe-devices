@@ -26,7 +26,7 @@ class Control_thread(threading.Thread):
         self.state = "Not started"
         self._run = True
         self.period_time = period_time
-        threading.Thread.__init__(self, name="control_thread")
+        threading.Thread.__init__(self, name=self.goe_charger.name+"_control_thread")
 
     def stop(self):
         self._run = False
