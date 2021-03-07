@@ -197,7 +197,7 @@ class GOE_Charger:
                         self.alw = False
                         self.control_mode = "off"
                     if data == "solar":
-                        self.control_thread.start()
+                        self.control_thread.run()
                         self.control_mode = "solar"
 
 
