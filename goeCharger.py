@@ -30,8 +30,7 @@ class Control_thread(threading.Thread):
 
     def stop(self):
         self._run = False
-        while self.is_alive():
-            time.sleep(1)
+        self.join()
 
     def run(self):
         control_active = True
@@ -39,37 +38,38 @@ class Control_thread(threading.Thread):
         state_old = self.state
         charging = False
         while self._run:
-            power = self.solarInverter.LeistungEinspeisung
-            amps = int(GOE_Charger.power_to_amp(power))
+            if self.goe_charger.control_mode == "solar":
+                power = self.solarInverter.LeistungEinspeisung
+                amps = int(GOE_Charger.power_to_amp(power))
 
-            if self.goe_charger.data.get("uby") != "0":
-                self.state = "override"
-            else:
-                self.state = "auto"
-
-            if not control_active and self.goe_charger.alw:
-                self.state = "override"
-            else:
-                self.state = "auto"
-
-            if self.state == "auto":
-                if amps >= self.goe_charger.min_amp and self.goe_charger.min_amp >= 0:
-                    control_active = True
-                    # self.set_alw(True)
-                    self.goe_charger.amp = amps
-                    if not charging:
-                        logger.info("Charging with "+str(int(power))+" W")
-                        charging = True
+                if self.goe_charger.data.get("uby") != "0":
+                    self.state = "override"
                 else:
-                    control_active = False
-                    self.goe_charger.alw = False
-                    self.goe_charger.amp = self.goe_charger.min_amp
-                    if charging:
-                        logger.info("Stopped charging")
-                        charging = False
+                    self.state = "auto"
 
-            if self.state != state_old:
-                logger.info("State changed to " + self.state)
+                if not control_active and self.goe_charger.alw:
+                    self.state = "override"
+                else:
+                    self.state = "auto"
+
+                if self.state == "auto":
+                    if amps >= self.goe_charger.min_amp and self.goe_charger.min_amp >= 0:
+                        control_active = True
+                        # self.set_alw(True)
+                        self.goe_charger.amp = amps
+                        if not charging:
+                            logger.info("Charging with "+str(int(power))+" W")
+                            charging = True
+                    else:
+                        control_active = False
+                        self.goe_charger.alw = False
+                        self.goe_charger.amp = self.goe_charger.min_amp
+                        if charging:
+                            logger.info("Stopped charging")
+                            charging = False
+
+                if self.state != state_old:
+                    logger.info("State changed to " + self.state)
 
             state_old = self.state
             time.sleep(self.period_time)
@@ -78,8 +78,8 @@ class GOE_Charger:
     def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
         self.name = name
         self.address = address
-        self.control_thread = Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128")
         self.control_mode = "on" if self.alw else "off"
+        self.control_thread = Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128").start()
         self.min_amp = -1
         self.mqtt_enabled = False
         self.http_connection = None
@@ -189,15 +189,12 @@ class GOE_Charger:
 
                 if "control-mode" == topics[-1]:
                     if data == "on":
-                        self.control_thread.stop()
-                        self.alw = True
                         self.control_mode = "on"
+                        self.alw = True
                     if data == "off":
-                        self.control_thread.stop()
-                        self.alw = False
                         self.control_mode = "off"
+                        self.alw = False
                     if data == "solar":
-                        self.control_thread.run()
                         self.control_mode = "solar"
 
 
