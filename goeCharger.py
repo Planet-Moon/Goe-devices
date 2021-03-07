@@ -19,17 +19,67 @@ def test_power():
     return random.uniform(4000, 8000)
 ###
 
-class ControlTask(threading.Thread):
-    def __init__(self):
+class Control_thread(threading.Thread):
+    def __init__(self, goe_charger, solarInverter_ip, period_time=5, min_amp=-1):
+        self.goe_charger = goe_charger
+        self.solarInverter = SMA_SunnyBoy(solarInverter_ip)
+        self.state = "Not started"
+        self._run = True
+        self.period_time = period_time
+        self.min_amp = min_amp
         threading.Thread.__init__(self, name="control_thread")
 
+    def stop(self):
+        self._run = False
+        while self.is_alive():
+            time.sleep(1)
+
     def run(self):
-        pass
+        control_active = True
+        self.state = "auto"
+        state_old = self.state
+        charging = False
+        while self._run:
+            power = self.solarInverter.LeistungEinspeisung
+            amps = int(GOE_Charger.power_to_amp(power))
+
+            if self.goe_charger.data.get("uby") != "0":
+                self.state = "override"
+            else:
+                self.state = "auto"
+
+            if not control_active and self.alw:
+                self.state = "override"
+            else:
+                self.state = "auto"
+
+            if self.state == "auto":
+                if amps >= self.min_amp and self.min_amp >= 0:
+                    control_active = True
+                    # self.set_alw(True)
+                    self.goe_charger.amp = amps
+                    if not charging:
+                        logger.info("Charging with "+str(int(power))+" W")
+                        charging = True
+                else:
+                    control_active = False
+                    self.goe_charger.alw = False
+                    self.goe_charger.amp = self.min_amp
+                    if charging:
+                        logger.info("Stopped charging")
+                        charging = False
+
+            if self.state != state_old:
+                logger.info("State changed to " + self.state)
+
+            state_old = self.state
+            time.sleep(self.period_time)
 
 class GOE_Charger:
     def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
         self.name = name
         self.address = address
+        self.control_thread = Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128")
         self.power_threshold = -1
         self.mqtt_enabled = False
         self.http_connection = None
@@ -135,6 +185,17 @@ class GOE_Charger:
                     if min_amp_setting <= 16 and min_amp_setting >=6:
                         self.power_threshold = min_amp_setting
 
+                if "control-mode" == topics[-1]:
+                    if data == "on":
+                        self.control_thread.stop()
+                        self.alw = True
+                    if data == "off":
+                        self.control_thread.stop()
+                        self.alw = False
+                    if data == "solar":
+                        self.control_thread.start()
+
+
     def mqtt_publish(self, topic=None, payload=None, qos=0, retain=False):
         if topic is None:
             topic = self.mqtt_topic
@@ -205,7 +266,8 @@ class GOE_Charger:
             self.http_connection = False
         pass
 
-    def power_to_amp(self,power:float):
+    @staticmethod
+    def power_to_amp(power:float):
         """Calculate amps from power for 3 phase ac.
 
         Args:
@@ -214,70 +276,14 @@ class GOE_Charger:
         Returns:
             float: amps in ampere
         """
-        u_eff = 3*230
+        u_eff = 3*230 # Drehstrom
         i = power/u_eff
         return i
 
-    def init_amp_from_power(self,get_power):
-        self.get_power = get_power
-        self.get_power = self._random
-
     # for testing purposes
-    def _random(self, args):
+    @staticmethod
+    def _random():
         return random.uniform(4000/2.8, 8000/2.8)
-
-    def loop(self,update_period):
-        control_active = True
-        state = "auto"
-        state_old = state
-        charging = False
-        while True:
-            power = self.get_power("power")
-            if power < 0.0:
-                power = 0.0
-            power = power * 2.8
-            amps = int(self.power_to_amp(power))
-
-            if self.data.get("uby") != "0":
-                state = "override"
-            else:
-                state = "auto"
-
-            if not control_active and self.alw:
-                state = "override"
-            else:
-                state = "auto"
-
-            if state == "auto":
-                if amps >= self.power_threshold and self.power_threshold >= 0:
-                    control_active = True
-                    # self.set_alw(True)
-                    self.set_amp(amps)
-                    if not charging:
-                        self.telegramBot.sendMessage(self.telegramBot.chat_id,"Charging with "+str(int(power))+" W")
-                        charging = True
-                else:
-                    control_active = False
-                    self.set_alw(False)
-                    self.set_amp(6)
-                    if charging:
-                        self.telegramBot.sendMessage(self.telegramBot.chat_id,"Stopped charging")
-                        charging = False
-
-            if state != state_old:
-                self.telegramBot.sendMessage(self.telegramBot.chat_id,"State changed to " + state)
-
-            state_old = state
-            time.sleep(update_period)
-
-    def start_controller(self, update_period=120):
-        thread = threading.Thread(target=self.loop, args=(update_period,))
-        thread.start()
-
-class Inverter(SMA_SunnyBoy):
-    def __init__(self, ipAddress:str):
-        self.ipAddress = ipAddress
-        super(Inverter, self).__init__(ipAddress)
 
 class Goe_TelegramBot(TelegramBot):
 
@@ -302,9 +308,8 @@ class Goe_TelegramBot(TelegramBot):
             time.sleep(update_period)
 
 def main():
-    sunny_inverter = Inverter("192.168.178.128")
+    sunny_inverter = SMA_SunnyBoy("192.168.178.128")
     goe_charger = GOE_Charger('http://192.168.178.106')
-    goe_charger.init_amp_from_power(sunny_inverter.read_value)
 
     # .gitignore
     import _creds
@@ -314,7 +319,6 @@ def main():
     r = telegramBot.setMyCommands([{"command":"hello", "description":"Say hello"},{"command":"test", "description":"Say test"}])
     commands = telegramBot.getMyCommands()
 
-    goe_charger.start_controller(update_period=20)
     telegramBot.start(update_period=5)
 
 if __name__ == '__main__':
