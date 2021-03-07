@@ -47,7 +47,7 @@ class Control_thread(threading.Thread):
             else:
                 self.state = "auto"
 
-            if not control_active and self.alw:
+            if not control_active and self.goe_charger.alw:
                 self.state = "override"
             else:
                 self.state = "auto"
