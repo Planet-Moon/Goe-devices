@@ -80,6 +80,8 @@ class GOE_Charger:
         self.address = address
         self.control_mode = "on" if self.alw else "off"
         self.control_thread = Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128").start()
+        self.get_error_counter = 0
+        self.set_error_counter = 0
         self.min_amp = -1
         self.mqtt_enabled = False
         self.http_connection = None
@@ -210,12 +212,11 @@ class GOE_Charger:
         try:
             r = requests.get(self.address+"/status")
             self.http_connection = True
+            return json.loads(r.text)
         except requests.exceptions.ConnectionError as e:
             logger.error("Connection error: %s", e)
             self.http_connection = False
-        if r:
-            return json.loads(r.text)
-        else:
+            self.get_error += 1
             return None
 
     @property
@@ -266,6 +267,7 @@ class GOE_Charger:
         except requests.exceptions.ConnectionError as e:
             logger.error("Connection error: %s", e)
             self.http_connection = False
+            self.set_error += 1
         pass
 
     @staticmethod
