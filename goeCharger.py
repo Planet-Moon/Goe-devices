@@ -40,33 +40,49 @@ class Control_thread(threading.Thread):
         while self._run:
             if self.goe_charger.control_mode == "solar":
                 power = self.solarInverter.LeistungEinspeisung
-                amps = int(GOE_Charger.power_to_amp(power))
+                amp_setpoint = int(GOE_Charger.power_to_amp(power))
 
-                if self.goe_charger.data.get("uby") != "0":
+                try:
+                    uby = self.goe_charger.data.get("uby")
+                    alw = self.goe_charger.alw
+                    min_amp = self.goe_charger.min_amp
+                    amp = self.goe_charger.amp
+                except:
+                    time.sleep(self.period_time)
+                    continue
+
+
+                if uby != "0":
                     self.state = "override"
                 else:
                     self.state = "auto"
 
-                if not control_active and self.goe_charger.alw:
+                if not control_active and alw:
                     self.state = "override"
                 else:
                     self.state = "auto"
 
                 if self.state == "auto":
-                    if amps >= self.goe_charger.min_amp and self.goe_charger.min_amp >= 0:
+                    if amp_setpoint >= min_amp and min_amp >= 0:
                         control_active = True
                         # self.set_alw(True)
-                        self.goe_charger.amp = amps
+                        amp = amp_setpoint
                         if not charging:
                             logger.info("Charging with "+str(int(power))+" W")
                             charging = True
                     else:
                         control_active = False
-                        self.goe_charger.alw = False
-                        self.goe_charger.amp = self.goe_charger.min_amp
+                        alw = False
+                        amp = min_amp
                         if charging:
                             logger.info("Stopped charging")
                             charging = False
+
+                    try:
+                        self.goe_charger.amp = amp
+                        self.goe_charger.alw = alw
+                    except:
+                        pass
 
                 if self.state != state_old:
                     logger.info("State changed to " + self.state)
