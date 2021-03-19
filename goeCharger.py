@@ -196,7 +196,7 @@ class GOE_Charger:
                         amp_setting = int(data)
                     except ValueError:
                         return
-                    if amp_setting <= 16 and amp_setting >=6:
+                    if amp_setting <= 20 and amp_setting >=6:
                         self.amp = amp_setting
 
                 if "min-amp" == topics[-1]:
@@ -204,7 +204,7 @@ class GOE_Charger:
                         min_amp_setting = int(data)
                     except ValueError:
                         return
-                    if min_amp_setting <= 16 and min_amp_setting >=6:
+                    if min_amp_setting <= 20 and min_amp_setting >=6:
                         self.min_amp = min_amp_setting
 
                 if "control-mode" == topics[-1]:
