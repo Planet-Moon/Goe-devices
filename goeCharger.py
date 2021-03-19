@@ -6,6 +6,7 @@ import math
 import paho.mqtt.client as mqtt
 import logging
 import threading
+from datetime import datetime
 
 from SMA_SunnyBoy import SMA_SunnyBoy
 from TelegramBot import TelegramBot
@@ -94,8 +95,9 @@ class GOE_Charger:
     def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
         self.name = name
         self.address = address
+        self._data = {"last_read":datetime(2020,1,1)}
         self.control_mode = "on" if self.alw else "off"
-        self.control_thread = Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128").start()
+        Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128").start()
         self.get_error_counter = 0
         self.set_error_counter = 0
         self.min_amp = -1
@@ -224,16 +226,22 @@ class GOE_Charger:
 
     @property
     def data(self):
-        r = None
-        try:
-            r = requests.get(self.address+"/status")
-            self.http_connection = True
-            return json.loads(r.text)
-        except requests.exceptions.ConnectionError as e:
-            logger.error("Connection error: %s", e)
-            self.http_connection = False
-            self.get_error += 1
-            return None
+        time_now = datetime.now()
+        time_passed = (time_now-self._data["last_read"]).seconds
+        if time_passed >= 5:
+            try:
+                r = requests.get(self.address+"/status")
+                self.http_connection = True
+                result = json.loads(r.text)
+                result["last_read"] = datetime.now()
+                self._data = result
+            except requests.exceptions.ConnectionError as e:
+                logger.error("Connection error: %s", e)
+                self.http_connection = False
+                self.get_error += 1
+        else:
+            result = self._data
+        return result
 
     @property
     def amp(self):
