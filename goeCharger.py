@@ -228,17 +228,26 @@ class GOE_Charger:
     def data(self):
         time_now = datetime.now()
         time_passed = (time_now-self._data["last_read"]).seconds
+        exceptions = []
         if time_passed >= 5:
-            try:
-                r = requests.get(self.address+"/status")
-                self.http_connection = True
-                result = json.loads(r.text)
-                result["last_read"] = datetime.now()
-                self._data = result
-            except requests.exceptions.ConnectionError as e:
-                logger.error("Connection error: %s", e)
-                self.http_connection = False
-                self.get_error += 1
+            max_retries = 5
+            retries = 0
+            for retries in range(max_retries):
+                try:
+                    r = requests.get(self.address+"/status")
+                    self.http_connection = True
+                    result = json.loads(r.text)
+                    result["last_read"] = datetime.now()
+                    self._data = result
+                    break
+                except requests.exceptions.ConnectionError as e:
+                    exceptions.append(e)
+                    self.http_connection = False
+                    self.get_error_counter += 1
+                    logger.error("Errors encounterd: "+ self.get_error_counter)
+                    logger.error("Retry: "+ retries)
+            for exception in exceptions:
+                logger.error("Connection error: %s", exception)
         else:
             result = self._data
         return result
@@ -291,7 +300,7 @@ class GOE_Charger:
         except requests.exceptions.ConnectionError as e:
             logger.error("Connection error: %s", e)
             self.http_connection = False
-            self.set_error += 1
+            self.set_error_counter += 1
         pass
 
     @staticmethod
