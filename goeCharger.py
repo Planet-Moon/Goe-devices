@@ -159,7 +159,7 @@ class GOE_Charger:
 
                 self.mqtt_publish(topic+"/control-mode",self.control_mode,retain=True)
 
-                self.mqtt_publish(topic+"/update-time",datetime.now(timezone).isoformat(" ","seconds"),retain=True)
+                self.mqtt_publish(topic+"/update-time",datetime.now(timezone).strftime("%Y-%m-%d %H:%M:%S"),retain=True)
 
             time.sleep(5)
         self.mqtt_loop_running = False
