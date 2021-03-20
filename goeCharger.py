@@ -157,6 +157,8 @@ class GOE_Charger:
 
                 self.mqtt_publish(topic+"/control-mode",self.control_mode,retain=True)
 
+                self.mqtt_publish(topic+"/update-time",datetime.now().isoformat("#","seconds"),retain=True)
+
             time.sleep(5)
         self.mqtt_loop_running = False
 
@@ -246,6 +248,7 @@ class GOE_Charger:
                     self.get_error_counter += 1
                     logger.error("Errors encounterd: "+ self.get_error_counter)
                     logger.error("Retry: "+ retries)
+                    time.sleep(2)
             for exception in exceptions:
                 logger.error("Connection error: %s", exception)
         else:
