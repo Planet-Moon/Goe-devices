@@ -7,6 +7,8 @@ import paho.mqtt.client as mqtt
 import logging
 import threading
 from datetime import datetime
+import pytz
+timezone = pytz.timezone("Europe/Berlin")
 
 from SMA_SunnyBoy import SMA_SunnyBoy
 from TelegramBot import TelegramBot
@@ -95,7 +97,7 @@ class GOE_Charger:
     def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
         self.name = name
         self.address = address
-        self._data = {"last_read":datetime(2020,1,1)}
+        self._data = {"last_read":timezone.localize(datetime(2020,1,1))}
         self.control_mode = "on" if self.alw else "off"
         Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128").start()
         self.get_error_counter = 0
@@ -157,7 +159,7 @@ class GOE_Charger:
 
                 self.mqtt_publish(topic+"/control-mode",self.control_mode,retain=True)
 
-                self.mqtt_publish(topic+"/update-time",datetime.now().isoformat(" ","seconds"),retain=True)
+                self.mqtt_publish(topic+"/update-time",datetime.now(timezone).isoformat(" ","seconds"),retain=True)
 
             time.sleep(5)
         self.mqtt_loop_running = False
@@ -228,7 +230,7 @@ class GOE_Charger:
 
     @property
     def data(self):
-        time_now = datetime.now()
+        time_now = datetime.now(timezone)
         time_passed = (time_now-self._data["last_read"]).seconds
         exceptions = []
         if time_passed >= 5:
@@ -239,7 +241,7 @@ class GOE_Charger:
                     r = requests.get(self.address+"/status")
                     self.http_connection = True
                     result = json.loads(r.text)
-                    result["last_read"] = datetime.now()
+                    result["last_read"] = datetime.now(timezone)
                     self._data = result
                     break
                 except requests.exceptions.ConnectionError as e:
