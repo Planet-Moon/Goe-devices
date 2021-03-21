@@ -38,6 +38,11 @@ class Control_thread(threading.Thread):
     def run(self):
         control_active = True
         self.state = "auto"
+        while not self.goe_charger.mqtt_connected:
+            time.sleep(2)
+        self.goe_charger.mqtt_publish(
+            self.goe_charger.mqtt_topic+"/status"+"/control-status",
+            self.state,retain=True)
         state_old = self.state
         charging = False
         while self._run:
@@ -68,7 +73,7 @@ class Control_thread(threading.Thread):
                 if self.state == "auto":
                     if amp_setpoint >= min_amp and min_amp >= 0:
                         control_active = True
-                        # self.set_alw(True)
+                        alw = True
                         amp = amp_setpoint
                         if not charging:
                             logger.info("Charging with "+str(int(power))+" W")
@@ -85,10 +90,13 @@ class Control_thread(threading.Thread):
                         self.goe_charger.amp = amp
                         self.goe_charger.alw = alw
                     except:
-                        pass
+                        logger.eroor("Goe-Control: Error setting setpoints")
 
                 if self.state != state_old:
                     logger.info("State changed to " + self.state)
+                    if self.goe_charger.mqtt_connected:
+                        topic = self.goe_charger.mqtt_topic+"/status"
+                        self.goe_charger.mqtt_publish(topic+"/control-status",self.state,retain=True)
 
             state_old = self.state
             time.sleep(self.period_time)
