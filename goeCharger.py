@@ -59,16 +59,16 @@ class Control_thread(threading.Thread):
                     time.sleep(self.period_time)
                     continue
 
+                self.state = "auto"
 
                 if uby != "0":
                     self.state = "override"
-                else:
-                    self.state = "auto"
 
                 if not control_active and alw:
                     self.state = "override"
-                else:
-                    self.state = "auto"
+
+                if self.goe_charger.car <= 1:
+                    self.state = "car not connected"
 
                 if self.state == "auto":
                     if amp_setpoint >= min_amp and min_amp >= 0:
@@ -91,6 +91,10 @@ class Control_thread(threading.Thread):
                         self.goe_charger.alw = alw
                     except:
                         logger.eroor("Goe-Control: Error setting setpoints")
+
+                elif self.state == "car not connected":
+                    alw = False
+                    amp = min_amp
 
                 if self.state != state_old:
                     logger.info("State changed to " + self.state)
