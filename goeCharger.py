@@ -67,7 +67,7 @@ class Control_thread(threading.Thread):
                 if not control_active and alw:
                     self.state = "override"
 
-                if self.goe_charger.car <= 1:
+                if int(self.goe_charger.car) <= 1:
                     self.state = "car not connected"
 
                 if self.state == "auto":
