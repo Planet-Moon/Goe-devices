@@ -23,7 +23,7 @@ def test_power():
 ###
 
 class Control_thread(threading.Thread):
-    def __init__(self, goe_charger, solarInverter_ip, period_time=5, min_amp=-1):
+    def __init__(self, goe_charger, solarInverter_ip, period_time=5):
         self.goe_charger = goe_charger
         self.solarInverter = SMA_SunnyBoy(solarInverter_ip)
         self.state = "Not started"
@@ -134,7 +134,7 @@ class GOE_Charger:
             self.mqtt_client.loop_start()
             timeout = 0
             while not self.mqtt_connected and timeout < 5:
-                logger.info("Trying to connect to mqtt broker")
+                logger.warning("Trying to connect to mqtt broker")
                 timeout += 1
                 time.sleep(5)
             self.mqtt_loop_run = None
@@ -237,7 +237,7 @@ class GOE_Charger:
     def mqtt_publish(self, topic=None, payload=None, qos=0, retain=False):
         if topic is None:
             topic = self.mqtt_topic
-        logger.info("Publishing: %s %s %s %s", topic, payload, qos, retain)
+        logger.debug("Publishing: %s %s %s %s", topic, payload, qos, retain)
         return self.mqtt_client.publish(topic, payload, qos, retain)
 
     @property
