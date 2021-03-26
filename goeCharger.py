@@ -121,7 +121,7 @@ class Control_thread(threading.Thread):
                         self.goe_charger.mqtt_publish(topic+"/control-status",self.state,retain=True)
 
             if ns.amp != cs.amp:
-                logger.info("Charging with "+str(int(ns.amp))+" W")
+                logger.info("Charging with "+str(GOE_Charger.amp_to_power(ns.amp))+" W")
 
             time.sleep(self.period_time)
 
