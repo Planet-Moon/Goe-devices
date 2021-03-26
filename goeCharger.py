@@ -6,6 +6,7 @@ import math
 import paho.mqtt.client as mqtt
 import logging
 import threading
+import copy
 from datetime import datetime
 import pytz
 timezone = pytz.timezone("Europe/Berlin")
@@ -36,73 +37,92 @@ class Control_thread(threading.Thread):
         self.join()
 
     def run(self):
-        control_active = True
         self.state = "auto"
         while not self.goe_charger.mqtt_connected:
             time.sleep(2)
         self.goe_charger.mqtt_publish(
             self.goe_charger.mqtt_topic+"/status"+"/control-status",
             self.state,retain=True)
-        state_old = self.state
-        charging = False
+
+        class State:
+            def __init__(self):
+                self.control_state = "auto"
+                self.control_active = False
+                self.amp = 0
+
+            @property
+            def control_state(self):
+                return self._control_state
+
+            @control_state.setter
+            def control_state(self,state):
+                self._control_state = state
+
+            def __eq__(self, other):
+                if not isinstance(other, State):
+                    # don't attempt to compare against unrelated types
+                    return NotImplemented
+
+                result = True
+                if self.control_state != other.control_state:
+                    result = False
+                if self.control_active != other.control_active:
+                    result = False
+                if self.amp != other.amp:
+                    result = False
+                return result
+
+        cs = State() # current state
+        ns = copy.copy(cs) # next state
         while self._run:
+            cs = copy.copy(ns)
             if self.goe_charger.control_mode == "solar":
-                power = self.solarInverter.LeistungEinspeisung
-                amp_setpoint = int(GOE_Charger.power_to_amp(power))
+                power = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
+                amp_setpoint = int(GOE_Charger.power_to_amp(power))+cs.amp
 
                 try:
+                    # read values from goe_charger
                     uby = self.goe_charger.data.get("uby")
-                    alw = self.goe_charger.alw
                     min_amp = self.goe_charger.min_amp
-                    amp = self.goe_charger.amp
+                    car = self.goe_charger.car
                 except:
                     time.sleep(self.period_time)
                     continue
 
-                self.state = "auto"
-
+                # Transition
+                ns.control_state = "auto" # default value
                 if uby != "0":
-                    self.state = "override"
+                    ns.control_state = "override"
+                elif not cs.control_active and cs.control_active:
+                    ns.control_state = "override"
+                elif int(car) <= 1:
+                    ns.control_state = "car not connected"
 
-                if not control_active and alw:
-                    self.state = "override"
-
-                if int(self.goe_charger.car) <= 1:
-                    self.state = "car not connected"
-
-                if self.state == "auto":
+                if cs.control_state == "auto":
                     if amp_setpoint >= min_amp and min_amp >= 0:
-                        control_active = True
-                        alw = True
-                        amp = amp_setpoint
-                        if not charging:
-                            logger.info("Charging with "+str(int(power))+" W")
-                            charging = True
+                        ns.control_active = True
+                        ns.amp = amp_setpoint
                     else:
-                        control_active = False
-                        alw = False
-                        amp = min_amp
-                        if charging:
-                            logger.info("Stopped charging")
-                            charging = False
+                        ns.control_active = False
+                        ns.amp = min_amp
 
-                    try:
-                        self.goe_charger.amp = amp
-                        self.goe_charger.alw = alw
-                    except:
-                        logger.eroor("Goe-Control: Error setting setpoints")
-
-                elif self.state == "car not connected":
-                    alw = False
-                    amp = min_amp
-
-                if self.state != state_old:
-                    logger.info("State changed to " + self.state)
+            # Output
+            if ns != cs:
+                if cs.control_state == "auto":
+                    self.goe_charger.amp = cs.amp
+                    self.goe_charger.alw = cs.control_active
+                elif cs.control_state == "car not connected":
+                    self.goe_charger.amp = min_amp
+                    self.goe_charger.alw = False
+                if cs.control_state != ns.control_state:
+                    logger.info("Control state changed to %s", ns.control_state)
                     if self.goe_charger.mqtt_connected:
                         topic = self.goe_charger.mqtt_topic+"/status"
                         self.goe_charger.mqtt_publish(topic+"/control-status",self.state,retain=True)
 
-            state_old = self.state
+            if ns.amp != cs.amp:
+                logger.info("Charging with "+str(int(ns.amp))+" W")
+
             time.sleep(self.period_time)
 
 class GOE_Charger:
