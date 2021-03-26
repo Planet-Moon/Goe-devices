@@ -121,7 +121,7 @@ class Control_thread(threading.Thread):
                     logger.info("Control state changed to %s", ns.control_state)
                     if self.goe_charger.mqtt_connected:
                         topic = self.goe_charger.mqtt_topic+"/status"
-                        self.goe_charger.mqtt_publish(topic+"/control-status",cs.constol_state,retain=True)
+                        self.goe_charger.mqtt_publish(topic+"/control-status",cs.control_state,retain=True)
 
             if ns.amp != cs.amp and cs.control_state == "auto":
                 logger.info("Charging with "+str(GOE_Charger.amp_to_power(ns.amp))+" W")
