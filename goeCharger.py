@@ -354,6 +354,21 @@ class GOE_Charger:
         i = power/u_eff
         return i
 
+    @staticmethod
+    def amp_to_power(amps:float):
+        """Calculate power from amps for 3 phase ac.
+
+        Args:
+            amps (float): current in amps
+
+        Returns:
+            float: power in watt
+        """
+
+        u_eff = 3*230 # Drehstrom
+        power = amps*u_eff
+        return power
+
     # for testing purposes
     @staticmethod
     def _random():
