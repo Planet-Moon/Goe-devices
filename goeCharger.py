@@ -37,12 +37,6 @@ class Control_thread(threading.Thread):
         self.join()
 
     def run(self):
-        self.state = "auto"
-        while not self.goe_charger.mqtt_connected:
-            time.sleep(2)
-        self.goe_charger.mqtt_publish(
-            self.goe_charger.mqtt_topic+"/status"+"/control-status",
-            self.state,retain=True)
 
         class State:
             def __init__(self):
@@ -74,6 +68,12 @@ class Control_thread(threading.Thread):
 
         cs = State() # current state
         ns = copy.copy(cs) # next state
+        while not self.goe_charger.mqtt_connected:
+            time.sleep(2)
+        self.goe_charger.mqtt_publish(
+            self.goe_charger.mqtt_topic+"/status"+"/control-status",
+            cs.control_state,retain=True)
+
         while self._run:
             cs = copy.copy(ns)
             if self.goe_charger.control_mode == "solar":
@@ -105,6 +105,9 @@ class Control_thread(threading.Thread):
                     else:
                         ns.control_active = False
                         ns.amp = min_amp
+                if cs.control_state == "car not connected":
+                    ns.control_active = False
+                    ns.amp = min_amp
 
             # Output
             if ns != cs:
@@ -118,9 +121,9 @@ class Control_thread(threading.Thread):
                     logger.info("Control state changed to %s", ns.control_state)
                     if self.goe_charger.mqtt_connected:
                         topic = self.goe_charger.mqtt_topic+"/status"
-                        self.goe_charger.mqtt_publish(topic+"/control-status",self.state,retain=True)
+                        self.goe_charger.mqtt_publish(topic+"/control-status",cs.constol_state,retain=True)
 
-            if ns.amp != cs.amp:
+            if ns.amp != cs.amp and cs.control_state == "auto":
                 logger.info("Charging with "+str(GOE_Charger.amp_to_power(ns.amp))+" W")
 
             time.sleep(self.period_time)
