@@ -40,7 +40,7 @@ class Control_thread(threading.Thread):
 
         class State:
             def __init__(self):
-                self.control_state = ""
+                self.control_state = "auto"
                 self.control_active = False
                 self.amp = 0
 
