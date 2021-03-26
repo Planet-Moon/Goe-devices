@@ -40,7 +40,7 @@ class Control_thread(threading.Thread):
 
         class State:
             def __init__(self):
-                self.control_state = "auto"
+                self.control_state = ""
                 self.control_active = False
                 self.amp = 0
 
@@ -67,6 +67,7 @@ class Control_thread(threading.Thread):
                 return result
 
         cs = State() # current state
+        cs.amp = self.goe_charger.min_amp
         ns = copy.copy(cs) # next state
         while not self.goe_charger.mqtt_connected:
             time.sleep(2)
