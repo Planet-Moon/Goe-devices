@@ -113,8 +113,8 @@ class Control_thread(threading.Thread):
             # Output
             if ns != cs:
                 if cs.control_state == "auto":
-                    self.goe_charger.amp = cs.amp
-                    self.goe_charger.alw = cs.control_active
+                    self.goe_charger.amp = ns.amp
+                    self.goe_charger.alw = ns.control_active
                 elif cs.control_state == "car not connected":
                     self.goe_charger.amp = min_amp
                     self.goe_charger.alw = False
@@ -122,7 +122,7 @@ class Control_thread(threading.Thread):
                     logger.info("Control state changed to %s", ns.control_state)
                     if self.goe_charger.mqtt_connected:
                         topic = self.goe_charger.mqtt_topic+"/status"
-                        self.goe_charger.mqtt_publish(topic+"/control-status",cs.control_state,retain=True)
+                        self.goe_charger.mqtt_publish(topic+"/control-status",ns.control_state,retain=True)
 
             if ns.amp != cs.amp and cs.control_state == "auto":
                 logger.info("Charging with "+str(GOE_Charger.amp_to_power(ns.amp))+" W")
@@ -138,7 +138,6 @@ class GOE_Charger:
         self.get_error_counter = 0
         self.set_error_counter = 0
         self.min_amp = -1
-        self.mqtt_enabled = False
         self.http_connection = None
         if mqtt_topic and mqtt_broker and mqtt_port:
             self.mqtt_topic = mqtt_topic
