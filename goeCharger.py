@@ -67,7 +67,7 @@ class Control_thread(threading.Thread):
                 return result
 
         cs = State() # current state
-        cs.amp = self.goe_charger.min_amp
+        cs.amp = self.goe_charger.min_amp if self.goe_charger.min_amp >= 0 else 0
         ns = copy.copy(cs) # next state
         while not self.goe_charger.mqtt_connected:
             time.sleep(2)
@@ -78,8 +78,9 @@ class Control_thread(threading.Thread):
         while self._run:
             cs = copy.copy(ns)
             if self.goe_charger.control_mode == "solar":
-                power = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
-                amp_setpoint = int(GOE_Charger.power_to_amp(power))+cs.amp
+                power_delta = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
+                amp_setpoint = int(GOE_Charger.power_to_amp(power_delta)) + cs.amp * cs.control_active
+                logger.debug("amp_setpoint:" + str(amp_setpoint))
 
                 try:
                     # read values from goe_charger
@@ -96,8 +97,6 @@ class Control_thread(threading.Thread):
                     ns.control_state = "override"
                 elif not cs.control_active and cs.control_active:
                     ns.control_state = "override"
-                elif int(car) <= 1:
-                    ns.control_state = "car not connected"
 
                 if cs.control_state == "auto":
                     if amp_setpoint >= min_amp and min_amp >= 0:
@@ -106,18 +105,15 @@ class Control_thread(threading.Thread):
                     else:
                         ns.control_active = False
                         ns.amp = min_amp
-                if cs.control_state == "car not connected":
+                if int(car) <= 1: # car not connected
                     ns.control_active = False
-                    ns.amp = min_amp
 
             # Output
             if ns != cs:
-                if cs.control_state == "auto":
-                    self.goe_charger.amp = ns.amp
-                    self.goe_charger.alw = ns.control_active
-                elif cs.control_state == "car not connected":
-                    self.goe_charger.amp = min_amp
-                    self.goe_charger.alw = False
+                self.goe_charger.amp = ns.amp
+                self.goe_charger.alw = ns.control_active
+                logger.info("amp: "+str(ns.amp))
+                logger.info("control_active: "+str(ns.control_active))
                 if cs.control_state != ns.control_state:
                     logger.info("Control state changed to %s", ns.control_state)
                     if self.goe_charger.mqtt_connected:
@@ -275,7 +271,11 @@ class GOE_Charger:
                 try:
                     r = requests.get(self.address+"/status")
                     self.http_connection = True
-                    result = json.loads(r.text)
+                    json_string = r.text.replace(" ","")
+                    if json_string[-1] == '}':
+                        result = json.loads(json_string)
+                    else:
+                        raise requests.exceptions.ConnectionError
                     result["last_read"] = datetime.now(timezone)
                     self._data = result
                     break
