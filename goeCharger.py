@@ -283,8 +283,8 @@ class GOE_Charger:
                     exceptions.append(e)
                     self.http_connection = False
                     self.get_error_counter += 1
-                    logger.error("Errors encounterd: "+ self.get_error_counter)
-                    logger.error("Retry: "+ retries)
+                    logger.error("Errors encounterd: {}".format(self.get_error_counter))
+                    logger.error("Retry: {}".format(retries))
                     time.sleep(2)
             for exception in exceptions:
                 logger.error("Connection error: %s", exception)
