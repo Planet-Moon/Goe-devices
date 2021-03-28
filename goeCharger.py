@@ -80,6 +80,7 @@ class Control_thread(threading.Thread):
             if self.goe_charger.control_mode == "solar":
                 power_delta = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
                 amp_setpoint = int(GOE_Charger.power_to_amp(power_delta)) + cs.amp * cs.control_active
+                logger.debug("power_delta:" + str(power_delta))
                 logger.debug("amp_setpoint:" + str(amp_setpoint))
 
                 try:
