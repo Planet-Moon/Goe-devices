@@ -263,10 +263,10 @@ class GOE_Charger:
     def data(self):
         time_now = datetime.now(timezone)
         time_passed = (time_now-self._data["last_read"]).seconds
-        exceptions = []
         if time_passed >= 5:
             max_retries = 10
             retries = 0
+            exceptions = []
             for retries in range(max_retries):
                 try:
                     r = requests.get(self.address+"/status")
@@ -285,7 +285,8 @@ class GOE_Charger:
                     self.get_error_counter += 1
                     logger.error("Retry: {}".format(retries))
                     time.sleep(2)
-            logger.error("Errors encounterd: {}".format(self.get_error_counter))
+            if exceptions:
+                logger.error("Errors encounterd: {}".format(self.get_error_counter))
             for exception in exceptions:
                 logger.error("Connection error: %s", exception)
         else:
