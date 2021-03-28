@@ -265,7 +265,7 @@ class GOE_Charger:
         time_passed = (time_now-self._data["last_read"]).seconds
         exceptions = []
         if time_passed >= 5:
-            max_retries = 5
+            max_retries = 10
             retries = 0
             for retries in range(max_retries):
                 try:
@@ -283,9 +283,9 @@ class GOE_Charger:
                     exceptions.append(e)
                     self.http_connection = False
                     self.get_error_counter += 1
-                    logger.error("Errors encounterd: {}".format(self.get_error_counter))
                     logger.error("Retry: {}".format(retries))
                     time.sleep(2)
+            logger.error("Errors encounterd: {}".format(self.get_error_counter))
             for exception in exceptions:
                 logger.error("Connection error: %s", exception)
         else:
