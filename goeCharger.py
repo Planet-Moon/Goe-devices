@@ -78,19 +78,24 @@ class Control_thread(threading.Thread):
         while self._run:
             cs = copy.copy(ns)
             if self.goe_charger.control_mode == "solar":
-                power_delta = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
-                amp_setpoint = int(GOE_Charger.power_to_amp(power_delta)) + cs.amp * cs.control_active
-                logger.debug("power_delta:" + str(power_delta))
-                logger.debug("amp_setpoint:" + str(amp_setpoint))
 
                 try:
                     # read values from goe_charger
                     uby = self.goe_charger.data.get("uby")
                     min_amp = self.goe_charger.min_amp
                     car = self.goe_charger.car
+                    nrg = self.goe_charger.nrg # Watts
                 except:
                     time.sleep(self.period_time)
                     continue
+
+                power_delta = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
+                if self.goe_charger.solar_ratio > 0:
+                    amp_setpoint = int(GOE_Charger.power_to_amp((power_delta + nrg)/self.goe_charger.solar_ratio))
+                else:
+                    amp_setpoint = min_amp
+                logger.debug("power_delta:" + str(power_delta))
+                logger.debug("amp_setpoint:" + str(amp_setpoint))
 
                 # Transition
                 ns.control_state = "auto" # default value
@@ -135,6 +140,7 @@ class GOE_Charger:
         self.get_error_counter = 0
         self.set_error_counter = 0
         self.min_amp = -1
+        self.solar_ratio = 1.0 # range 0.0 - 1.0
         self.http_connection = None
         if mqtt_topic and mqtt_broker and mqtt_port:
             self.mqtt_topic = mqtt_topic
@@ -192,6 +198,8 @@ class GOE_Charger:
                 self.mqtt_publish(topic+"/control-mode",self.control_mode,retain=True)
 
                 self.mqtt_publish(topic+"/update-time",datetime.now(timezone).strftime("%Y-%m-%d %H:%M:%S"),retain=True)
+
+                self.mqtt_publish(topic+"/solar-ratio",self.solar_ratio*100,retain=True) # MQTT sends percent
 
             time.sleep(5)
         self.mqtt_loop_running = False
@@ -253,6 +261,8 @@ class GOE_Charger:
                     if data == "solar":
                         self.control_mode = "solar"
 
+                if "solar-ratio" == topics[-1]:
+                    self.solar_ratio = float(data)/100 # MQTT sends percent
 
     def mqtt_publish(self, topic=None, payload=None, qos=0, retain=False):
         if topic is None:
