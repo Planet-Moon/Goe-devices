@@ -90,10 +90,12 @@ class Control_thread(threading.Thread):
                     continue
 
                 power_delta = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
+                self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
                 if self.goe_charger.solar_ratio > 0:
                     amp_setpoint = int(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio + GOE_Charger.power_to_amp(nrg))
                 else:
                     amp_setpoint = min_amp
+                self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-setpoint",payload=str(amp_setpoint*690))
                 logger.debug("power_delta:" + str(power_delta))
                 logger.debug("amp_setpoint:" + str(amp_setpoint))
 
