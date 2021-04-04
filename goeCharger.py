@@ -114,20 +114,27 @@ class Control_thread(threading.Thread):
                 if int(car) <= 1: # car not connected
                     ns.control_active = False
 
-            # Output
-            if ns != cs:
-                self.goe_charger.amp = ns.amp
-                self.goe_charger.alw = ns.control_active
-                logger.info("amp: "+str(ns.amp))
-                logger.info("control_active: "+str(ns.control_active))
-                if cs.control_state != ns.control_state:
-                    logger.info("Control state changed to %s", ns.control_state)
-                    if self.goe_charger.mqtt_connected:
-                        topic = self.goe_charger.mqtt_topic+"/status"
-                        self.goe_charger.mqtt_publish(topic+"/control-status",ns.control_state,retain=True)
+                # Output
+                if ns != cs:
+                    self.goe_charger.amp = ns.amp
+                    self.goe_charger.alw = ns.control_active
+                    logger.info("amp: "+str(ns.amp))
+                    logger.info("control_active: "+str(ns.control_active))
+                    if cs.control_state != ns.control_state:
+                        logger.info("Control state changed to %s", ns.control_state)
+                        if self.goe_charger.mqtt_connected:
+                            topic = self.goe_charger.mqtt_topic+"/status"
+                            self.goe_charger.mqtt_publish(topic+"/control-status",ns.control_state,retain=True)
 
-            if ns.amp != cs.amp and cs.control_state == "auto":
-                logger.info("Charging with "+str(GOE_Charger.amp_to_power(ns.amp))+" W")
+                if ns.amp != cs.amp and cs.control_state == "auto":
+                    logger.info("Charging with "+str(GOE_Charger.amp_to_power(ns.amp))+" W")
+
+            elif self.goe_charger.control_mode == "on":
+                self.goe_charger.amp = self.goe_charger.min_amp
+                self.goe_charger.alw = True
+
+            elif self.goe_charger.control_mode == "off":
+                self.goe_charger.alw = False
 
             time.sleep(self.period_time)
 
