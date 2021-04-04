@@ -91,7 +91,7 @@ class Control_thread(threading.Thread):
 
                 power_delta = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
                 if self.goe_charger.solar_ratio > 0:
-                    amp_setpoint = int(GOE_Charger.power_to_amp((power_delta + nrg)/self.goe_charger.solar_ratio))
+                    amp_setpoint = int(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio + GOE_Charger.power_to_amp(nrg))
                 else:
                     amp_setpoint = min_amp
                 logger.debug("power_delta:" + str(power_delta))
