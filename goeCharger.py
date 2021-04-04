@@ -131,13 +131,6 @@ class Control_thread(threading.Thread):
                 if ns.amp != cs.amp and cs.control_state == "auto":
                     logger.info("Charging with "+str(GOE_Charger.amp_to_power(ns.amp))+" W")
 
-            elif self.goe_charger.control_mode == "on":
-                self.goe_charger.amp = self.goe_charger.min_amp
-                self.goe_charger.alw = True
-
-            elif self.goe_charger.control_mode == "off":
-                self.goe_charger.alw = False
-
             time.sleep(self.period_time)
 
 class GOE_Charger:
