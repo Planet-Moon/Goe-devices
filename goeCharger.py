@@ -12,6 +12,8 @@ import pytz
 timezone = pytz.timezone("Europe/Berlin")
 
 from SMA_SunnyBoy import SMA_SunnyBoy
+from SMA_StorageBoy import SMA_StorageBoy
+from piko_inverter import Piko_inverter
 from TelegramBot import TelegramBot
 
 logging.basicConfig(level=logging.INFO)
@@ -24,9 +26,12 @@ def test_power():
 ###
 
 class Control_thread(threading.Thread):
-    def __init__(self, goe_charger, solarInverter_ip, period_time=5):
+    def __init__(self, goe_charger, solarInverter_ip, batteryInverter_ip, period_time=30):
         self.goe_charger = goe_charger
         self.solarInverter = SMA_SunnyBoy(solarInverter_ip)
+        self.batteryInverter = SMA_StorageBoy(batteryInverter_ip)
+        self.Piko_inverter = Piko_inverter()
+        self.solar_power = lambda: self.solarInverter.power + self.Piko_inverter.power
         self.state = "Not started"
         self._run = True
         self.period_time = period_time
@@ -89,7 +94,7 @@ class Control_thread(threading.Thread):
                     time.sleep(self.period_time)
                     continue
 
-                power_delta = self.solarInverter.LeistungEinspeisung - self.solarInverter.LeistungBezug
+                power_delta = self.solar_power() - self.solarInverter.LeistungBezug - self.batteryInverter.power
                 self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
                 if self.goe_charger.solar_ratio > 0:
                     amp_setpoint = int(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio + GOE_Charger.power_to_amp(nrg))
@@ -166,7 +171,7 @@ class GOE_Charger:
                 time.sleep(5)
             self.mqtt_loop_run = None
             self.mqtt_loop_running = None
-        Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128").start()
+        Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128",batteryInverter_ip="192.168.178.113").start()
 
 
     def start_loop(self):
