@@ -7,6 +7,7 @@ import paho.mqtt.client as mqtt
 import logging
 import threading
 import copy
+import math
 from datetime import datetime
 import pytz
 timezone = pytz.timezone("Europe/Berlin")
@@ -107,10 +108,12 @@ class Control_thread(threading.Thread):
                 power_delta = solar_power - battery_power - LeistungBezug
                 self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
                 if self.goe_charger.solar_ratio > 0:
-                    amp_setpoint = int(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio + GOE_Charger.power_to_amp(nrg))
+                    amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio + GOE_Charger.power_to_amp(nrg))
                 else:
                     amp_setpoint = min_amp
-                self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-setpoint",payload=str(amp_setpoint*690))
+
+                power_setpoint = GOE_Charger.amp_to_power(amp_setpoint)
+                self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-setpoint",payload=str(power_setpoint))
                 logger.debug("power_delta:" + str(power_delta))
                 logger.debug("amp_setpoint:" + str(amp_setpoint))
 
