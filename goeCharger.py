@@ -31,6 +31,7 @@ class Control_thread(threading.Thread):
         self.goe_charger = goe_charger
         self.solarInverter = SMA_SunnyBoy(solarInverter_ip)
         self.batteryInverter = SMA_StorageBoy(batteryInverter_ip)
+        self.battery_state = -3500 if self.batteryInverter.AktuellerBatterieladezustand > 75 else 3500
         self.Piko_inverter = Piko_inverter()
         self.solar_power = lambda: self.solarInverter.power + self.Piko_inverter.power
         self.state = "Not started"
@@ -42,9 +43,10 @@ class Control_thread(threading.Thread):
         lade_zustand = self.batteryInverter.AktuellerBatterieladezustand
 
         if lade_zustand > 85:
-            return -3500
+            self.battery_state = -3500
         elif lade_zustand < 75:
-            return  3500
+            self.battery_state = 3500
+        return self.battery_state
 
     def stop(self):
         self._run = False
