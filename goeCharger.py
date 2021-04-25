@@ -39,11 +39,12 @@ class Control_thread(threading.Thread):
         threading.Thread.__init__(self, name=self.goe_charger.name+"_control_thread")
 
     def battery_power(self):
-        power = self.batteryInverter.MomentaneBatterieladung - self.batteryInverter.MomentaneBatterieentladung
-        if power >= 0:
-            return power
-        else:
-            return 0
+        lade_zustand = self.batteryInverter.AktuellerBatterieladezustand
+
+        if lade_zustand > 85:
+            return -3500
+        elif lade_zustand < 75:
+            return  3500
 
     def stop(self):
         self._run = False
@@ -104,11 +105,10 @@ class Control_thread(threading.Thread):
 
                 solar_power = self.solar_power()
                 battery_power = self.battery_power()
-                LeistungBezug = self.solarInverter.LeistungBezug
-                power_delta = solar_power - battery_power - LeistungBezug
+                power_delta = solar_power - battery_power
                 self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
                 if self.goe_charger.solar_ratio > 0:
-                    amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio + GOE_Charger.power_to_amp(nrg))
+                    amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio)
                 else:
                     amp_setpoint = min_amp
 
