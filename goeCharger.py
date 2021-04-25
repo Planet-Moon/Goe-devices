@@ -105,10 +105,10 @@ class Control_thread(threading.Thread):
 
                 solar_power = self.solar_power()
                 battery_power = self.battery_power()
-                power_delta = solar_power - battery_power
+                power_delta = solar_power/self.goe_charger.solar_ratio - battery_power
                 self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
                 if self.goe_charger.solar_ratio > 0:
-                    amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta)/self.goe_charger.solar_ratio)
+                    amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta))
                 else:
                     amp_setpoint = min_amp
 
