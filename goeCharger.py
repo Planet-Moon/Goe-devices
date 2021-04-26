@@ -8,6 +8,7 @@ import logging
 import threading
 import copy
 import math
+from enum import IntEnum, unique
 from datetime import datetime
 import pytz
 timezone = pytz.timezone("Europe/Berlin")
@@ -43,8 +44,10 @@ class Control_thread(threading.Thread):
         lade_zustand = self.batteryInverter.AktuellerBatterieladezustand
 
         if lade_zustand > 85:
-            self.battery_state = -3500
-        elif lade_zustand < 75:
+            self.battery_state = -2000
+        elif lade_zustand > 70 and lade_zustand < 80:
+            self.battery_state = 0
+        elif lade_zustand < 65:
             self.battery_state = 3500
         return self.battery_state
 
