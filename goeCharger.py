@@ -27,6 +27,41 @@ def test_power():
     return random.uniform(4000, 8000)
 ###
 
+class BatteryManager:
+
+    @unique
+    class State(IntEnum):
+        STANDBY = 0,
+        CHARGE = 1,
+        DISCHARGE = 2
+
+    def __init__(self,charge_power:int=3500,discharge_power:int=2000,limit_low:int=75,limit_high:int=85):
+        self.state = self.State.STANDBY
+        self.charge_power = charge_power
+        self.discharge_power = discharge_power
+        self.limit_low = limit_low
+        self.limit_high = limit_high
+
+    def _power_balance(self):
+        if(self.state == self.State.CHARGE):
+            return self.charge_power
+        elif(self.state == self.State.DISCHARGE):
+            return self.discharge_power
+        elif(self.state == self.State.STANDBY):
+            return 0
+        else:
+            raise ValueError("Unsupported state")
+
+    def update(self,solar_power:float,battery_power:float,battery_charge:int,grid_power:float):
+        if(grid_power > 0):
+            self.state = self.State.DISCHARGE
+        elif(battery_charge > 85):
+            self.state = self.State.DISCHARGE
+        elif(battery_charge < 75 and solar_power > 0):
+            self.state = self.State.CHARGE
+
+        return self.state, self._power_balance()
+
 class Control_thread(threading.Thread):
     def __init__(self, goe_charger, solarInverter_ip, batteryInverter_ip, period_time=30):
         self.goe_charger = goe_charger
@@ -42,13 +77,16 @@ class Control_thread(threading.Thread):
 
     def battery_power(self):
         lade_zustand = self.batteryInverter.AktuellerBatterieladezustand
+        x = lade_zustand
 
-        if lade_zustand > 85:
-            self.battery_state = -2000
-        elif lade_zustand > 70 and lade_zustand < 80:
-            self.battery_state = 0
-        elif lade_zustand < 65:
-            self.battery_state = 3500
+        self.battery_state = -3.666*x**3+834.985*x**2-63282.2178*x+1595971.8236
+
+        # if lade_zustand > 85:
+        #     self.battery_state = -2000
+        # elif lade_zustand > 70 and lade_zustand < 80:
+        #     self.battery_state = 0
+        # elif lade_zustand < 65:
+        #     self.battery_state = 3500
         return self.battery_state
 
     def stop(self):
