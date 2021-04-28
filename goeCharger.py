@@ -85,7 +85,7 @@ class Control_thread(threading.Thread):
 
         if lade_zustand > 85:
             self.battery_state = -2000
-        elif lade_zustand > 72 and lade_zustand < 78:
+        elif lade_zustand > 72 and lade_zustand < 78 and self.battery_state <= 0:
             self.battery_state = 0
         elif lade_zustand < 65:
             self.battery_state = 3500
