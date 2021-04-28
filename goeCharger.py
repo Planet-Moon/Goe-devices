@@ -360,6 +360,7 @@ class GOE_Charger:
                     self.http_connection = False
                     self.get_error_counter += 1
                     logger.error("Retry: {}".format(retries))
+                    result = self._data
                     time.sleep(2)
             if exceptions:
                 logger.error("Errors encounterd: {}".format(self.get_error_counter))
