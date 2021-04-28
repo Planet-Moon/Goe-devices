@@ -79,14 +79,16 @@ class Control_thread(threading.Thread):
         lade_zustand = self.batteryInverter.AktuellerBatterieladezustand
         x = lade_zustand
 
-        self.battery_state = -3.666*x**3+834.985*x**2-63282.2178*x+1595971.8236
+        # self.battery_state = -3.666*lade_zustand**3 + \
+        #     834.985*lade_zustand**2-63282.2178*lade_zustand + \
+        #     1595971.8236
 
-        # if lade_zustand > 85:
-        #     self.battery_state = -2000
-        # elif lade_zustand > 70 and lade_zustand < 80:
-        #     self.battery_state = 0
-        # elif lade_zustand < 65:
-        #     self.battery_state = 3500
+        if lade_zustand > 85:
+            self.battery_state = -2000
+        elif lade_zustand > 72 and lade_zustand < 78:
+            self.battery_state = 0
+        elif lade_zustand < 65:
+            self.battery_state = 3500
         return self.battery_state
 
     def stop(self):
