@@ -278,7 +278,7 @@ class GOE_Charger:
 
     # The callback for when the client receives a CONNACK response from the server.
     def mqtt_on_connect(self, client, userdata, flags, rc):
-        logger.info("Connected with result code "+str(rc))
+        logger.info("MQTT Connected with result code "+str(rc))
 
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
