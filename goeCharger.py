@@ -201,7 +201,6 @@ class GOE_Charger:
         self.name = name
         self.address = address
         self._data = {"last_read":timezone.localize(datetime(2020,1,1))}
-        self.control_mode = "on" if self.alw else "off"
         self.get_error_counter = 0
         self.set_error_counter = 0
         self.min_amp = -1
@@ -229,6 +228,7 @@ class GOE_Charger:
                 time.sleep(5)
             self.mqtt_loop_run = None
             self.mqtt_loop_running = None
+        self.control_mode = "on" if self.alw else "off"
         Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128",batteryInverter_ip="192.168.178.113").start()
 
 
