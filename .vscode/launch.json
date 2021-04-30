@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Debug Aktuelle Datei",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["-O"]
+        },
+        {
             "name": "Python: Aktuelle Datei",
             "type": "python",
             "request": "launch",

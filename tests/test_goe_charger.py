@@ -1,6 +1,9 @@
 from goeCharger import GOE_Charger as GoeCharger
 import time
 
+if __debug__:
+    print("Debug mode!")
+
 ipAddress = "http://192.168.178.106"
 mqtt_topic = "home_test_server/goe_charger/GoeCharger1"
 # mqtt_broker = "broker.hivemq.com"
@@ -22,6 +25,7 @@ goe_charger = GoeCharger(
     mqtt_port=mqtt_port,
     mqtt_transport=mqtt_transport,
     mqtt_path=mqtt_path,
+    control_thread=False
     )
 
 # goe_charger.start_loop()

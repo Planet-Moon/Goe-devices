@@ -18,6 +18,8 @@ from SMA_StorageBoy import SMA_StorageBoy
 from piko_inverter import Piko_inverter
 from TelegramBot import TelegramBot
 
+import IdGenerator
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -197,7 +199,7 @@ class Control_thread(threading.Thread):
             time.sleep(self.period_time)
 
 class GOE_Charger:
-    def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt"):
+    def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt",control_thread=True,device_mqtt_enable=False):
         self.name = name
         self.address = address
         self._data = {"last_read":timezone.localize(datetime(2020,1,1))}
@@ -206,31 +208,49 @@ class GOE_Charger:
         self.min_amp = -1
         self.solar_ratio = 1.0 # range 0.0 - 1.0
         self.http_connection = None
-        if mqtt_topic and mqtt_broker and mqtt_port:
-            self.mqtt_topic = mqtt_topic
-            self.mqtt_broker = mqtt_broker
-            self.mqtt_port = mqtt_port
-            self.mqtt_transport = mqtt_transport
-            self.mqtt_path = mqtt_path
-            if self.mqtt_transport:
-                self.mqtt_client = mqtt.Client(self.mqtt_transport)
-                self.mqtt_client.ws_set_options(path=self.mqtt_path, headers=None)
-            else:
-                self.mqtt_client = mqtt.Client()
-            self.mqtt_client.on_connect = self.mqtt_on_connect
-            self.mqtt_client.on_message = self.mqtt_on_message
-            self.mqtt_client.connect_async(self.mqtt_broker,self.mqtt_port,60)
-            self.mqtt_client.loop_start()
-            timeout = 0
-            while not self.mqtt_connected and timeout < 5:
-                logger.warning("Trying to connect to mqtt broker")
-                timeout += 1
-                time.sleep(5)
-            self.mqtt_loop_run = None
-            self.mqtt_loop_running = None
         self.control_mode = "on" if self.alw else "off"
-        Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128",batteryInverter_ip="192.168.178.113").start()
+        init_mqtt_result = self.init_mqtt(topic=mqtt_topic,broker=mqtt_broker,port=mqtt_port,transport=mqtt_transport,path=mqtt_path)
+        if init_mqtt_result:
+            self.device_mqtt_server = mqtt_broker
+            self.device_mqtt_usr = IdGenerator.id_generator()
+            self.device_mqtt_port = mqtt_port
+            self.device_mqtt_enable = device_mqtt_enable
+            while not self.device_mqtt_connected and device_mqtt_enable:
+                print("Waiting for device mqtt connection ... ")
+                time.sleep(2)
+            if self.device_mqtt_connected:
+                print("Device mqtt connected!")
 
+        if control_thread:
+            Control_thread(goe_charger=self,solarInverter_ip="192.168.178.128",batteryInverter_ip="192.168.178.113").start()
+
+    def init_mqtt(self, topic:str, broker:str, transport, path, port=1883):
+        self.mqtt_topic = topic
+        self.mqtt_broker = broker
+        self.mqtt_port = port
+        self.mqtt_transport = transport
+        self.mqtt_path = path
+
+        if self.mqtt_transport:
+            self.mqtt_client = mqtt.Client(self.mqtt_transport)
+            self.mqtt_client.ws_set_options(path=self.mqtt_path, headers=None)
+        else:
+            self.mqtt_client = mqtt.Client()
+
+        self.mqtt_client.on_connect = self.mqtt_on_connect
+        self.mqtt_client.on_message = self.mqtt_on_message
+
+        self.mqtt_client.connect_async(self.mqtt_broker,self.mqtt_port,60)
+        self.mqtt_client.loop_start()
+        timeout = 0
+        while not self.mqtt_connected and timeout < 5:
+            logger.warning("Trying to connect to mqtt broker")
+            timeout += 1
+            time.sleep(5)
+
+        self.mqtt_loop_run = None
+        self.mqtt_loop_running = None
+        return True
 
     def start_loop(self):
         self.mqtt_loop_run = True
@@ -332,11 +352,14 @@ class GOE_Charger:
     def mqtt_publish(self, topic=None, payload=None, qos=0, retain=False):
         if topic is None:
             topic = self.mqtt_topic
+        if __debug__:
+            retain = False
+            topic += "_debug"
         logger.debug("Publishing: %s %s %s %s", topic, payload, qos, retain)
         return self.mqtt_client.publish(topic, payload, qos, retain)
 
     @property
-    def data(self):
+    def get_data(self):
         time_now = datetime.now(timezone)
         time_passed = (time_now-self._data["last_read"]).seconds
         if time_passed >= 5:
@@ -372,7 +395,7 @@ class GOE_Charger:
 
     @property
     def amp(self):
-        data = self.data
+        data = self.get_data
         if data:
             return data.get("amp")
         else:
@@ -380,7 +403,7 @@ class GOE_Charger:
 
     @property
     def car(self):
-        data = self.data
+        data = self.get_data
         if data:
             return data.get("car")
         else:
@@ -388,7 +411,7 @@ class GOE_Charger:
 
     @property
     def alw(self):
-        data = self.data
+        data = self.get_data
         if data:
             return True if data.get("alw") == "1" else False
         else:
@@ -396,7 +419,7 @@ class GOE_Charger:
 
     @property
     def nrg(self):
-        data = self.data
+        data = self.get_data
         if data:
             return data.get("nrg")[11]*10 # Watts
         else:
@@ -409,6 +432,82 @@ class GOE_Charger:
     @amp.setter
     def amp(self, value:int):
         self._set("amp",int(value))
+
+    @property
+    def power_factor(self):
+        data = self.get_data
+        if data:
+            return (data.get("nrg")[12] + data.get("nrg")[13] + data.get("nrg")[14])/3
+        else:
+            return None
+
+    @property
+    def device_mqtt_enable(self):
+        data = self.get_data
+        if data:
+            return data.get("mce")
+        else:
+            return None
+
+    @device_mqtt_enable.setter
+    def device_mqtt_enable(self, value:bool):
+        self._set("mce",int(value))
+
+    @property
+    def device_mqtt_server(self):
+        data = self.get_data
+        if data:
+            return data.get("mcs")
+        else:
+            return None
+
+    @device_mqtt_server.setter
+    def device_mqtt_server(self, value:str):
+        self._set("mcs",str(value))
+
+    @property
+    def device_mqtt_port(self):
+        data = self.get_data
+        if data:
+            return data.get("mcp")
+        else:
+            return None
+
+    @device_mqtt_port.setter
+    def device_mqtt_port(self, value:int):
+        self._set("mcp",int(value))
+
+    @property
+    def device_mqtt_usr(self):
+        data = self.get_data
+        if data:
+            return data.get("mcu")
+        else:
+            return None
+
+    @device_mqtt_usr.setter
+    def device_mqtt_usr(self, value:str):
+        self._set("mcu",str(value))
+
+    @property
+    def device_mqtt_pwd(self):
+        data = self.get_data
+        if data:
+            return data.get("mck")
+        else:
+            return None
+
+    @device_mqtt_pwd.setter
+    def device_mqtt_pwd(self, value:str):
+        self._set("mck",str(value))
+
+    @property # readonly
+    def device_mqtt_connected(self):
+        data = self.get_data
+        if data:
+            return data.get("mcc")
+        else:
+            return None
 
     def _set(self,key:str,value):
         address = self.address +"/mqtt?payload="+key+"="+str(value)
