@@ -276,6 +276,8 @@ class GOE_Charger:
 
                 self.mqtt_publish(topic+"/nrg",self.nrg,retain=True)
 
+                self.mqtt_publish(topic+"/power-factor",self.power_factor,retain=True)
+
                 self.mqtt_publish(topic+"/alw",self.alw,retain=True)
 
                 self.mqtt_publish(topic+"/min-amp",self.min_amp,retain=True)
