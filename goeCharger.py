@@ -142,11 +142,12 @@ class Control_thread(threading.Thread):
 
                 try:
                     # read values from goe_charger
-                    uby = self.goe_charger.data.get("uby")
+                    uby = self.goe_charger.get_data.get("uby")
                     min_amp = self.goe_charger.min_amp
                     car = self.goe_charger.car
                     nrg = self.goe_charger.nrg # Watts
-                except:
+                except Exception as e:
+                    logger.error("goeCharger not reachable: "+str(e))
                     time.sleep(self.period_time)
                     continue
 
