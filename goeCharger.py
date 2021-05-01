@@ -354,9 +354,6 @@ class GOE_Charger:
     def mqtt_publish(self, topic=None, payload=None, qos=0, retain=False):
         if topic is None:
             topic = self.mqtt_topic
-        if __debug__:
-            retain = False
-            topic += "_debug"
         logger.debug("Publishing: %s %s %s %s", topic, payload, qos, retain)
         return self.mqtt_client.publish(topic, payload, qos, retain)
 
