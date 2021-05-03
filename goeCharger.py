@@ -437,7 +437,8 @@ class GOE_Charger:
     def power_factor(self):
         data = self.get_data
         if data:
-            return (data.get("nrg")[12] + data.get("nrg")[13] + data.get("nrg")[14])/3
+            pf = (data.get("nrg")[12] + data.get("nrg")[13] + data.get("nrg")[14])/3
+            return round(pf,2)
         else:
             return None
 
