@@ -209,6 +209,7 @@ class GOE_Charger:
         self.min_amp = -1
         self.solar_ratio = 1.0 # range 0.0 - 1.0
         self.http_connection = None
+        self.http_error = "No Error"
         self.control_mode = "on" if self.alw else "off"
         init_mqtt_result = self.init_mqtt(topic=mqtt_topic,broker=mqtt_broker,port=mqtt_port,transport=mqtt_transport,path=mqtt_path)
         if init_mqtt_result:
@@ -268,6 +269,8 @@ class GOE_Charger:
                 topic = self.mqtt_topic+"/status"
 
                 self.mqtt_publish(topic+"/httpc",self.http_connection,retain=True)
+
+                self.mqtt_publish(topic+"/http-error",self.http_error,retain=True)
 
                 self.mqtt_publish(topic+"/car",self.car,retain=True)
                 if not self.http_connection:
@@ -358,6 +361,16 @@ class GOE_Charger:
         logger.debug("Publishing: %s %s %s %s", topic, payload, qos, retain)
         return self.mqtt_client.publish(topic, payload, qos, retain)
 
+    def update_http_status(self, status:bool, error_text=""):
+        if status:
+            self.http_connection = True
+            self.http_error = ""
+        else:
+            self.http_connection = False
+            if len(self.http_error):
+                self.http_error +=  ", "
+            self.http_error += error_text
+
     @property
     def get_data(self):
         time_now = datetime.now(timezone)
@@ -377,12 +390,13 @@ class GOE_Charger:
                         raise requests.exceptions.ConnectionError
                     result["last_read"] = datetime.now(timezone)
                     self._data = result
+                    self.update_http_status(True)
                     break
                 except requests.exceptions.ConnectionError as e:
                     exceptions.append(e)
-                    self.http_connection = False
+                    self.update_http_status(False,"Could not read values")
                     self.get_error_counter += 1
-                    logger.error("Retry: {}".format(retries))
+                    logger.error("Get Connection Error, Retry: {}".format(retries))
                     result = self._data
                     time.sleep(2)
             if exceptions:
@@ -510,16 +524,34 @@ class GOE_Charger:
         else:
             return None
 
+    def custom_variable_mapping(self, var_name:str=""):
+        var_map = {
+            "mcs":"device_mqtt_server",
+            "mcp":"device_mqtt_port",
+            "mcu":"device_mqtt_usr",
+            "mck":"device_mqtt_pwd",
+            "mcc":"device_mqtt_connected",
+            "mce":"device_mqtt_enable"
+        }
+        return var_map.get(var_name,var_name)
+
     def _set(self,key:str,value):
-        address = self.address +"/mqtt?payload="+key+"="+str(value)
-        try:
-            r = requests.get(address)
-            self.http_connection = True
-        except requests.exceptions.ConnectionError as e:
-            logger.error("Connection error: %s", e)
-            self.http_connection = False
-            self.set_error_counter += 1
-        pass
+        counter = 0
+        key = self.custom_variable_mapping(key)
+        max_retries = 10
+        while getattr(self,key) != value and counter < max_retries:
+            counter += 1
+            address = self.address +"/mqtt?payload="+key+"="+str(value)
+            try:
+                r = requests.get(address)
+                self.update_http_status(True)
+            except requests.exceptions.ConnectionError as e:
+                logger.error("Set Connection error: %s", e)
+                self.update_http_status(False,"Could not write value")
+                self.set_error_counter += 1
+            if getattr(self,key) != value:
+                time.sleep(2)
+        return self.http_connection
 
     @staticmethod
     def power_to_amp(power:float):
