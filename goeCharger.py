@@ -148,6 +148,7 @@ class Control_thread(threading.Thread):
                     nrg = self.goe_charger.nrg # Watts
                 except Exception as e:
                     logger.error("goeCharger not reachable: "+str(e))
+                    self.goe_charger.alw = False # Try to stop charging
                     time.sleep(self.period_time)
                     continue
 
