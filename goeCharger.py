@@ -170,23 +170,23 @@ class Control_thread(threading.Thread):
                 ns.control_state = "auto" # default value
                 if uby != "0":
                     ns.control_state = "override"
-                elif not cs.control_active and cs.control_active:
+                elif not cs.control_active and cs.control_active: # ! ANCHOR Weird
                     ns.control_state = "override"
 
                 if cs.control_state == "auto":
+                    ns.amp = amp_setpoint
                     if amp_setpoint >= min_amp and min_amp >= 0:
                         ns.control_active = True
-                        ns.amp = amp_setpoint
                     else:
                         ns.control_active = False
-                        ns.amp = min_amp
+
                 if int(car) <= 1: # car not connected
                     ns.control_active = False
 
                 # Output
                 if ns != cs:
-                    self.goe_charger.amp = ns.amp
-                    self.goe_charger.alw = ns.control_active
+                    self.goe_charger.amp = copy.copy(ns.amp)
+                    self.goe_charger.alw = copy.copy(ns.control_active)
                     logger.info("amp: "+str(ns.amp))
                     logger.info("control_active: "+str(ns.control_active))
                     if cs.control_state != ns.control_state:
