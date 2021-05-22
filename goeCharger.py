@@ -14,7 +14,7 @@ import pytz
 timezone = pytz.timezone("Europe/Berlin")
 
 from SMA_SunnyBoy import SMA_SunnyBoy
-from SMA_StorageBoy import SMA_StorageBoy
+from SMA_StorageBoy import SMA_StorageBoy, Battery_manager
 from piko_inverter import Piko_inverter
 from TelegramBot import TelegramBot
 
@@ -29,69 +29,18 @@ def test_power():
     return random.uniform(4000, 8000)
 ###
 
-class BatteryManager:
-
-    @unique
-    class State(IntEnum):
-        STANDBY = 0,
-        CHARGE = 1,
-        DISCHARGE = 2
-
-    def __init__(self,charge_power:int=3500,discharge_power:int=2000,limit_low:int=75,limit_high:int=85):
-        self.state = self.State.STANDBY
-        self.charge_power = charge_power
-        self.discharge_power = discharge_power
-        self.limit_low = limit_low
-        self.limit_high = limit_high
-
-    def _power_balance(self):
-        if(self.state == self.State.CHARGE):
-            return self.charge_power
-        elif(self.state == self.State.DISCHARGE):
-            return self.discharge_power
-        elif(self.state == self.State.STANDBY):
-            return 0
-        else:
-            raise ValueError("Unsupported state")
-
-    def update(self,solar_power:float,battery_power:float,battery_charge:int,grid_power:float):
-        if(grid_power > 0):
-            self.state = self.State.DISCHARGE
-        elif(battery_charge > 85):
-            self.state = self.State.DISCHARGE
-        elif(battery_charge < 75 and solar_power > 0):
-            self.state = self.State.CHARGE
-
-        return self.state, self._power_balance()
-
 class Control_thread(threading.Thread):
     def __init__(self, goe_charger, solarInverter_ip, batteryInverter_ip, period_time=30):
         self.goe_charger = goe_charger
         self.solarInverter = SMA_SunnyBoy(solarInverter_ip)
         self.batteryInverter = SMA_StorageBoy(batteryInverter_ip)
-        self.battery_state = -3500 if self.batteryInverter.AktuellerBatterieladezustand > 75 else 3500
+        self.battery_manager = Battery_manager(inverters=[self.batteryInverter])
         self.Piko_inverter = Piko_inverter()
         self.solar_power = lambda: self.solarInverter.power + self.Piko_inverter.power
         self.state = "Not started"
         self._run = True
         self.period_time = period_time
         threading.Thread.__init__(self, name=self.goe_charger.name+"_control_thread")
-
-    def battery_power(self):
-        lade_zustand = self.batteryInverter.AktuellerBatterieladezustand
-        x = lade_zustand
-
-        # self.battery_state = -3.666*lade_zustand**3 + \
-        #     834.985*lade_zustand**2-63282.2178*lade_zustand + \
-        #     1595971.8236
-
-        if lade_zustand > 85:
-            self.battery_state = -2000
-        elif lade_zustand > 72 and lade_zustand < 78 and self.battery_state <= 0:
-            self.battery_state = 0
-        elif lade_zustand < 65:
-            self.battery_state = 3500
-        return self.battery_state
 
     def stop(self):
         self._run = False
@@ -153,8 +102,8 @@ class Control_thread(threading.Thread):
                     continue
 
                 solar_power = self.solar_power()
-                battery_power = self.battery_power()
-                power_delta = (solar_power - battery_power - self.solarInverter.LeistungBezug)/self.goe_charger.solar_ratio
+                battery_power = self.battery_manager.power
+                power_delta = (solar_power + battery_power - self.solarInverter.LeistungBezug)/self.goe_charger.solar_ratio
                 self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
                 if self.goe_charger.solar_ratio > 0:
                     amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta))
