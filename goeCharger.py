@@ -87,51 +87,51 @@ class Control_thread(threading.Thread):
 
         while self._run:
             cs = copy.copy(ns)
-            if self.goe_charger.control_mode == "solar":
 
-                try:
-                    # read values from goe_charger
-                    uby = self.goe_charger.get_data.get("uby")
-                    min_amp = self.goe_charger.min_amp
-                    car = self.goe_charger.car
-                    nrg = self.goe_charger.nrg # Watts
-                except Exception as e:
-                    logger.error("goeCharger not reachable: "+str(e))
-                    self.goe_charger.alw = False # Try to stop charging
-                    time.sleep(self.period_time)
-                    continue
+            try:
+                # read values from goe_charger
+                uby = self.goe_charger.get_data.get("uby")
+                min_amp = self.goe_charger.min_amp
+                car = self.goe_charger.car
+                nrg = self.goe_charger.nrg # Watts
+            except Exception as e:
+                logger.error("goeCharger not reachable: "+str(e))
+                self.goe_charger.alw = False # Try to stop charging
+                time.sleep(self.period_time)
+                continue
 
-                solar_power = self.solar_power()
-                battery_power = self.battery_manager.power
-                power_delta = (solar_power + battery_power - self.solarInverter.LeistungBezug)/self.goe_charger.solar_ratio
-                self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
-                if self.goe_charger.solar_ratio > 0:
-                    amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta))
+            solar_power = self.solar_power()
+            battery_power = self.battery_manager.power
+            power_delta = (solar_power + battery_power - self.solarInverter.LeistungBezug)/self.goe_charger.solar_ratio
+            self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
+            if self.goe_charger.solar_ratio > 0:
+                amp_setpoint = math.floor(GOE_Charger.power_to_amp(power_delta))
+            else:
+                amp_setpoint = min_amp
+
+            power_setpoint = GOE_Charger.amp_to_power(amp_setpoint)
+            self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-setpoint",payload=str(power_setpoint))
+            logger.debug("power_delta:" + str(power_delta))
+            logger.debug("amp_setpoint:" + str(amp_setpoint))
+
+            # Transition
+            ns.control_state = "auto" # default value
+            if uby != "0":
+                ns.control_state = "override"
+            elif not cs.control_active and cs.control_active: # ! ANCHOR Weird
+                ns.control_state = "override"
+
+            if cs.control_state == "auto":
+                ns.amp = amp_setpoint
+                if amp_setpoint >= min_amp and min_amp >= 0:
+                    ns.control_active = True
                 else:
-                    amp_setpoint = min_amp
-
-                power_setpoint = GOE_Charger.amp_to_power(amp_setpoint)
-                self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-setpoint",payload=str(power_setpoint))
-                logger.debug("power_delta:" + str(power_delta))
-                logger.debug("amp_setpoint:" + str(amp_setpoint))
-
-                # Transition
-                ns.control_state = "auto" # default value
-                if uby != "0":
-                    ns.control_state = "override"
-                elif not cs.control_active and cs.control_active: # ! ANCHOR Weird
-                    ns.control_state = "override"
-
-                if cs.control_state == "auto":
-                    ns.amp = amp_setpoint
-                    if amp_setpoint >= min_amp and min_amp >= 0:
-                        ns.control_active = True
-                    else:
-                        ns.control_active = False
-
-                if int(car) <= 1: # car not connected
                     ns.control_active = False
 
+            if int(car) <= 1: # car not connected
+                ns.control_active = False
+
+            if self.goe_charger.control_mode == "solar":
                 # Output
                 if ns != cs:
                     self.goe_charger.amp = copy.copy(ns.amp)
