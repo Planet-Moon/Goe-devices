@@ -53,8 +53,8 @@ def read_data(data:list, min_date, max_date, tz):
 
 def get_my_data(min_date, max_date, tz):
     data_list = [
-        ["nrg","power_delta","alw","amp","min_amp"],
-        ["nrg","power-delta","alw","amp","min-amp"]]
+        ["nrg","power_delta","alw","amp","min_amp","battery_power","battery_soc","solar_power"],
+        ["nrg","power-delta","alw","amp","min-amp","battery-power","battery-soc","solar-power"]]
     data = read_data(data_list, min_date, max_date, tz)
 
     min_power = copy.deepcopy(data.min_amp)
@@ -76,14 +76,17 @@ def main():
 
     thread_results = {"nrg":None,"power_delta":None,"alw":None,"amp":None}
 
-    fig, ax = plt.subplots(3,1,sharex=True)
+    fig, ax = plt.subplots(4,1,sharex=True)
     l_nrg, = ax[0].plot(data.nrg["time"], data.nrg["value"], label="nrg")
     l_power_delta, = ax[0].plot(data.power_delta["time"], data.power_delta["value"], label="power_delta")
     l_power_setpoint, = ax[0].plot(data.power_setpoint["time"], data.power_setpoint["value"], label="power_setpoint")
     l_min_power, = ax[0].plot(data.min_power["time"], data.min_power["value"], label="min_power")
+    l_battery_power, =ax[0].plot(data.battery_power["time"], data.battery_power["value"], label="battery_power")
+    l_solar_power, =ax[0].plot(data.solar["time"], data.solar["value"], label="battery_power")
     l_amp, = ax[1].plot(data.amp["time"], data.amp["value"], label="amp")
     l_min_amp, = ax[1].plot(data.min_amp["time"], data.min_amp["value"], label="min_amp")
     l_alw, = ax[2].plot(data.alw["time"], data.alw["value"], label="alw")
+    l_battery_soc, = ax[3].plot(data.battery_soc["time"], data.battery_soc["value"], label="battery_soc")
     ax[0].legend()
     ax[1].legend()
     if True:

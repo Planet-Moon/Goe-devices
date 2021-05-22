@@ -101,6 +101,7 @@ class Control_thread(threading.Thread):
                 continue
 
             solar_power = self.solar_power()
+            self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/solar-power",payload=str(solar_power))
             battery_power = self.battery_manager.power
             self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/battery-power",payload=str(battery_power))
             self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/battery-soc",payload=str(self.battery_manager.soc))
