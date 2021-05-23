@@ -7,9 +7,15 @@ import pytz
 from threading import Thread
 import time
 import copy
+from timebudget import timebudget
 
+@timebudget
+def get_data_from_server(data_name:str):
+    return requests.get("http://rpigoe.local:8000/goeCharger/chargerlog/GoeCharger1/"+data_name).json()
+
+@timebudget
 def parse_data(data_name:str,tz):
-    data = requests.get("http://rpigoe.local:8000/goeCharger/chargerlog/GoeCharger1/"+data_name).json()
+    data = get_data_from_server(data_name)
     result = {"time":[],"value":[]}
     for i in range(len(data)):
         result["time"].append(dateutil.parser.parse(data[i].get("time")).astimezone(tz))
@@ -26,7 +32,6 @@ def parse_data(data_name:str,tz):
     result["time"] = np.array(result["time"])
     result["value"] = np.array(result["value"])
     return result
-
 
 def filter_time(data,min_date,max_date):
     new_data = {"time":[], "value": []}
@@ -69,8 +74,8 @@ def get_my_data(min_date, max_date, tz):
 def main():
     tz = pytz.timezone("Europe/Berlin")
     date_now = datetime.datetime.now(tz)
-    min_date = datetime.datetime(2021,5,date_now.day,10,0,0,0,tz)
-    max_date = datetime.datetime(2021,5,date_now.day,16,0,0,0,tz)
+    min_date = datetime.datetime(2020,5,date_now.day,0,0,0,0,tz)
+    max_date = datetime.datetime(2022,5,date_now.day,23,59,59,0,tz)
 
     data = get_my_data(min_date,max_date,tz)
 
@@ -81,14 +86,19 @@ def main():
     l_power_delta, = ax[0].plot(data.power_delta["time"], data.power_delta["value"], label="power_delta")
     l_power_setpoint, = ax[0].plot(data.power_setpoint["time"], data.power_setpoint["value"], label="power_setpoint")
     l_min_power, = ax[0].plot(data.min_power["time"], data.min_power["value"], label="min_power")
-    l_battery_power, =ax[0].plot(data.battery_power["time"], data.battery_power["value"], label="battery_power")
-    l_solar_power, =ax[0].plot(data.solar["time"], data.solar["value"], label="battery_power")
+    l_battery_power, = ax[0].plot(data.battery_power["time"], data.battery_power["value"], label="battery_power")
+    l_solar_power, = ax[0].plot(data.solar_power["time"], data.solar_power["value"], label="solar_power")
+
     l_amp, = ax[1].plot(data.amp["time"], data.amp["value"], label="amp")
     l_min_amp, = ax[1].plot(data.min_amp["time"], data.min_amp["value"], label="min_amp")
+
     l_alw, = ax[2].plot(data.alw["time"], data.alw["value"], label="alw")
+
     l_battery_soc, = ax[3].plot(data.battery_soc["time"], data.battery_soc["value"], label="battery_soc")
-    ax[0].legend()
-    ax[1].legend()
+
+    for i in ax:
+        i.legend()
+
     if True:
         plt.show()
     else:
