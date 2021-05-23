@@ -58,8 +58,8 @@ def read_data(data:list, min_date, max_date, tz):
 
 def get_my_data(min_date, max_date, tz):
     data_list = [
-        ["nrg","power_delta","alw","amp","min_amp","battery_power","battery_soc","solar_power"],
-        ["nrg","power-delta","alw","amp","min-amp","battery-power","battery-soc","solar-power"]]
+        ["nrg","power_delta","alw","amp","min_amp","battery_power","battery_soc","solar_power","car"],
+        ["nrg","power-delta","alw","amp","min-amp","battery-power","battery-soc","solar-power","car"]]
     data = read_data(data_list, min_date, max_date, tz)
 
     min_power = copy.deepcopy(data.min_amp)
@@ -81,7 +81,7 @@ def main():
 
     thread_results = {"nrg":None,"power_delta":None,"alw":None,"amp":None}
 
-    fig, ax = plt.subplots(4,1,sharex=True)
+    fig, ax = plt.subplots(5,1,sharex=True)
     l_nrg, = ax[0].plot(data.nrg["time"], data.nrg["value"], label="nrg")
     l_power_delta, = ax[0].plot(data.power_delta["time"], data.power_delta["value"], label="power_delta")
     l_power_setpoint, = ax[0].plot(data.power_setpoint["time"], data.power_setpoint["value"], label="power_setpoint")
@@ -95,6 +95,8 @@ def main():
     l_alw, = ax[2].plot(data.alw["time"], data.alw["value"], label="alw")
 
     l_battery_soc, = ax[3].plot(data.battery_soc["time"], data.battery_soc["value"], label="battery_soc")
+
+    l_car, = ax[4].plot(data.car["time"], data.car["value"], label="car")
 
     for i in ax:
         i.legend()
