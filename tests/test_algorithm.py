@@ -88,7 +88,7 @@ def main():
     l_min_power, = ax[0].plot(data.min_power["time"], data.min_power["value"], label="min_power")
     l_battery_power, = ax[0].plot(data.battery_power["time"], data.battery_power["value"], label="battery_power")
     l_solar_power, = ax[0].plot(data.solar_power["time"], data.solar_power["value"], label="solar_power")
-    l_grid_power, = ax[0].plot(data.grid["time"], data.grid["value"], label="solar_power")
+    l_grid_power, = ax[0].plot(data.grid_power["time"], data.grid_power["value"], label="solar_power")
 
     l_amp, = ax[1].plot(data.amp["time"], data.amp["value"], label="amp")
     l_min_amp, = ax[1].plot(data.min_amp["time"], data.min_amp["value"], label="min_amp")

@@ -85,8 +85,6 @@ class Control_thread(threading.Thread):
             self.goe_charger.mqtt_topic+"/status"+"/control-status",
             cs.control_state,retain=True)
 
-        grid_power = 0
-
         while self._run:
             cs = copy.copy(ns)
 
@@ -107,7 +105,7 @@ class Control_thread(threading.Thread):
             battery_power = self.battery_manager.power
             self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/battery-power",payload=str(battery_power))
             self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/battery-soc",payload=str(self.battery_manager.soc))
-            grid_power += -1*self.solarInverter.LeistungEinspeisung + self.solarInverter.LeistungBezug
+            grid_power = self.solarInverter.LeistungBezug - self.solarInverter.LeistungEinspeisung
             self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/grid-power",payload=str(grid_power))
             power_delta = (solar_power + battery_power - grid_power)/self.goe_charger.solar_ratio
             self.goe_charger.mqtt_publish(self.goe_charger.mqtt_topic+"/status/power-delta",payload=str(power_delta))
