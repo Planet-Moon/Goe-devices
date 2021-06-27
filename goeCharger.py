@@ -138,9 +138,9 @@ class Control_thread(threading.Thread):
 
             if self.goe_charger.control_mode == "solar":
                 # Output
+                self.goe_charger.amp = copy.copy(ns.amp)
+                self.goe_charger.alw = copy.copy(ns.control_active)
                 if ns != cs:
-                    self.goe_charger.amp = copy.copy(ns.amp)
-                    self.goe_charger.alw = copy.copy(ns.control_active)
                     logger.info("amp: "+str(ns.amp))
                     logger.info("control_active: "+str(ns.control_active))
                     if cs.control_state != ns.control_state:
