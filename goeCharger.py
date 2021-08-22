@@ -35,8 +35,8 @@ class Control_thread(threading.Thread):
         self.solarInverter = SMA_SunnyBoy(solarInverter_ip)
         self.batteryInverter = SMA_StorageBoy(batteryInverter_ip)
         self.battery_manager = Battery_manager(inverters=[self.batteryInverter])
-        self.Piko_inverter = Piko_inverter()
-        self.solar_power = lambda: self.solarInverter.power + self.Piko_inverter.power
+        self.solarInverterCarport = SMA_SunnyBoy("192.168.178.142")
+        self.solar_power = lambda: self.solarInverter.power + self.solarInverterCarport.power
         self.state = "Not started"
         self._run = True
         self.period_time = period_time
