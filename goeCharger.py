@@ -7,16 +7,17 @@ import paho.mqtt.client as mqtt
 import logging
 import threading
 import copy
-import math
 from enum import IntEnum, unique
 from datetime import datetime
 import pytz
 timezone = pytz.timezone("Europe/Berlin")
 
 from SMA_SunnyBoy import SMA_SunnyBoy
-from SMA_StorageBoy import SMA_StorageBoy, Battery_manager
+from SMA_StorageBoy import SMA_StorageBoy
+from BatteryManager import BatteryManager
 from piko_inverter import Piko_inverter
 from TelegramBot import TelegramBot
+from PowerSink import PowerSink
 
 import IdGenerator
 
@@ -34,7 +35,7 @@ class Control_thread(threading.Thread):
         self.goe_charger = goe_charger
         self.solarInverter = SMA_SunnyBoy(solarInverter_ip)
         self.batteryInverter = SMA_StorageBoy(batteryInverter_ip)
-        self.battery_manager = Battery_manager(inverters=[self.batteryInverter])
+        self.battery_manager = BatteryManager(inverters=[self.batteryInverter])
         self.Piko_inverter = Piko_inverter()
         self.solar_power = lambda: self.solarInverter.power + self.Piko_inverter.power
         self.state = "Not started"
@@ -154,18 +155,20 @@ class Control_thread(threading.Thread):
 
             time.sleep(self.period_time)
 
-class GOE_Charger:
-    def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt",control_thread=True,device_mqtt_enable=False):
+class GOE_Charger(PowerSink):
+    def __init__(self,address:str,name="",mqtt_topic="",mqtt_broker="",mqtt_port=1883,mqtt_transport=None,mqtt_path="/mqtt",control_thread=False,device_mqtt_enable=False):
+        PowerSink.__init__(self, name)
         self.name = name
         self.address = address
         self._data = {"last_read":timezone.localize(datetime(2020,1,1))}
         self.get_error_counter = 0
         self.set_error_counter = 0
         self.min_amp = -1
+        self.request_power = (self.amp_to_power(6),self.amp_to_power(30))
         self.solar_ratio = 1.0 # range 0.0 - 1.0
         self.http_connection = None
         self.http_error = "No Error"
-        self.control_mode = "on" if self.alw else "off"
+        self.control_mode = "solar"
         init_mqtt_result = self.init_mqtt(topic=mqtt_topic,broker=mqtt_broker,port=mqtt_port,transport=mqtt_transport,path=mqtt_path)
         if init_mqtt_result:
             self.device_mqtt_server = mqtt_broker
@@ -294,16 +297,14 @@ class GOE_Charger:
                         min_amp_setting = int(data)
                     except ValueError:
                         return
-                    if min_amp_setting <= 20 and min_amp_setting >=6:
+                    if min_amp_setting <= 30 and min_amp_setting >=6:
                         self.min_amp = min_amp_setting
 
                 if "control-mode" == topics[-1]:
                     if data == "on":
-                        self.control_mode = "on"
-                        self.alw = True
+                        self.turn_on()
                     if data == "off":
-                        self.control_mode = "off"
-                        self.alw = False
+                        self.turn_off()
                     if data == "solar":
                         self.control_mode = "solar"
 
@@ -325,6 +326,31 @@ class GOE_Charger:
             if len(self.http_error):
                 self.http_error +=  ", "
             self.http_error += error_text
+
+    def turn_on(self):
+        if self.control_mode == "off" or self.control_mode == "solar":
+            self.alw = True
+            self._allowed_power = self.amp_to_power(self.amp)
+            self.control_mode = "on"
+
+    def turn_off(self):
+        if self.control_mode == "on" or self.control_mode == "solar":
+            self.alw = False
+            self._allowed_power = 0
+            self.control_mode = "off"
+
+    def allow_power(self,power=0.0) -> bool:
+        if self.control_mode == "solar":
+            logger.info("power allowed: {} W".format(self._allowed_power))
+            if power > 0:
+                self.amp = self.power_to_amp(power)
+                self.alw = True
+                self._allowed_power = power
+            else:
+                self.amp = self.min_amp
+                self.alw = False
+                self._allowed_power = 0
+        return True
 
     @property
     def get_data(self):
@@ -478,6 +504,16 @@ class GOE_Charger:
             return data.get("mcc")
         else:
             return None
+
+    @property
+    def min_amp(self) -> int:
+        return self._min_amp
+
+    @min_amp.setter
+    def min_amp(self, value:6):
+        self._min_amp = value
+        self._request_power.min = self.amp_to_power(value)
+
 
     def custom_variable_mapping(self, var_name:str=""):
         var_map = {
