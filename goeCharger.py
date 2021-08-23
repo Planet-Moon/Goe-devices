@@ -341,15 +341,17 @@ class GOE_Charger(PowerSink):
 
     def allow_power(self,power=0.0) -> bool:
         if self.control_mode == "solar":
-            logger.info("power allowed: {} W".format(self._allowed_power))
             if power > 0:
-                self.amp = self.power_to_amp(power)
-                self.alw = True
-                self._allowed_power = power
+                if power >= self._request_power.min:
+                    self.amp = math.floor(self.power_to_amp(power))
+                    self.alw = True
+                    self._allowed_power = self.amp_to_power(self.amp)
             else:
-                self.amp = self.min_amp
-                self.alw = False
-                self._allowed_power = 0
+                if self._allowed_power != 0:
+                    self.amp = self.min_amp
+                    self.alw = False
+                    self._allowed_power = 0
+            logger.info("{} using power power: {} W".format(self.name, self._allowed_power))
         return True
 
     @property
@@ -555,7 +557,7 @@ class GOE_Charger(PowerSink):
             float: amps in ampere
         """
         u_eff = 3*230 # Drehstrom
-        i = power/u_eff
+        i = float(power)/u_eff
         return i
 
     @staticmethod
@@ -570,7 +572,7 @@ class GOE_Charger(PowerSink):
         """
 
         u_eff = 3*230 # Drehstrom
-        power = amps*u_eff
+        power = float(amps)*u_eff
         return power
 
     # for testing purposes
