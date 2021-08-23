@@ -81,7 +81,7 @@ class Control_thread(threading.Thread):
         cs.amp = self.goe_charger.min_amp if self.goe_charger.min_amp >= 0 else 0
         ns = copy.copy(cs) # next state
         while not self.goe_charger.mqtt_connected:
-            time.sleep(2)
+            time.sleep(0.2)
         self.goe_charger.mqtt_publish(
             self.goe_charger.mqtt_topic+"/status"+"/control-status",
             cs.control_state,retain=True)
@@ -164,20 +164,22 @@ class GOE_Charger(PowerSink):
         self.get_error_counter = 0
         self.set_error_counter = 0
         self.min_amp = -1
-        self.request_power = (self.amp_to_power(6),self.amp_to_power(30))
+        self.alw = False
+        self.request_power = (self.amp_to_power(6),self.amp_to_power(32))
         self.solar_ratio = 1.0 # range 0.0 - 1.0
         self.http_connection = None
         self.http_error = "No Error"
         self.control_mode = "solar"
+
         init_mqtt_result = self.init_mqtt(topic=mqtt_topic,broker=mqtt_broker,port=mqtt_port,transport=mqtt_transport,path=mqtt_path)
         if init_mqtt_result:
             self.device_mqtt_server = mqtt_broker
             self.device_mqtt_usr = IdGenerator.id_generator()
             self.device_mqtt_port = mqtt_port
             self.device_mqtt_enable = device_mqtt_enable
+            print("Waiting for device mqtt connection ... ")
             while not self.device_mqtt_connected and device_mqtt_enable:
-                print("Waiting for device mqtt connection ... ")
-                time.sleep(2)
+                time.sleep(0.2)
             if self.device_mqtt_connected:
                 print("Device mqtt connected!")
 
@@ -203,10 +205,10 @@ class GOE_Charger(PowerSink):
         self.mqtt_client.connect_async(self.mqtt_broker,self.mqtt_port,60)
         self.mqtt_client.loop_start()
         timeout = 0
+        logger.warning("Trying to connect to mqtt broker")
         while not self.mqtt_connected and timeout < 5:
-            logger.warning("Trying to connect to mqtt broker")
             timeout += 1
-            time.sleep(5)
+            time.sleep(0.2)
 
         self.mqtt_loop_run = None
         self.mqtt_loop_running = None
@@ -243,8 +245,6 @@ class GOE_Charger(PowerSink):
                 self.mqtt_publish(topic+"/alw",self.alw,retain=True)
 
                 self.mqtt_publish(topic+"/min-amp",self.min_amp,retain=True)
-
-                self.mqtt_publish(topic+"/control-mode",self.control_mode,retain=True)
 
                 self.mqtt_publish(topic+"/update-time",datetime.now(timezone).strftime("%Y-%m-%d %H:%M:%S"),retain=True)
 
@@ -289,7 +289,7 @@ class GOE_Charger(PowerSink):
                         amp_setting = int(data)
                     except ValueError:
                         return
-                    if amp_setting <= 20 and amp_setting >=6:
+                    if amp_setting <= 32 and amp_setting >=6:
                         self.amp = amp_setting
 
                 if "min-amp" == topics[-1]:
@@ -297,7 +297,7 @@ class GOE_Charger(PowerSink):
                         min_amp_setting = int(data)
                     except ValueError:
                         return
-                    if min_amp_setting <= 30 and min_amp_setting >=6:
+                    if min_amp_setting <= 32 and min_amp_setting >=6:
                         self.min_amp = min_amp_setting
 
                 if "control-mode" == topics[-1]:
@@ -326,6 +326,16 @@ class GOE_Charger(PowerSink):
             if len(self.http_error):
                 self.http_error +=  ", "
             self.http_error += error_text
+
+    @property
+    def control_mode(self):
+        return self._control_mode
+
+    @control_mode.setter
+    def control_mode(self, value):
+        self._control_mode = value
+        if self.mqtt_connected:
+            self.mqtt_publish(self.mqtt_topic+"/status/control-status", value, retain=True)
 
     def turn_on(self):
         if self.control_mode == "off" or self.control_mode == "solar":
@@ -381,7 +391,7 @@ class GOE_Charger(PowerSink):
                     self.get_error_counter += 1
                     logger.error("Get Connection Error, Retry: {}".format(retries))
                     result = self._data
-                    time.sleep(2)
+                    time.sleep(0.5)
             if exceptions:
                 logger.error("Errors encounterd: {}".format(self.get_error_counter))
             for exception in exceptions:
@@ -543,7 +553,7 @@ class GOE_Charger(PowerSink):
                 self.update_http_status(False,"Could not write value")
                 self.set_error_counter += 1
             if getattr(self,key) != value:
-                time.sleep(2)
+                time.sleep(0.5)
         return self.http_connection
 
     @staticmethod
