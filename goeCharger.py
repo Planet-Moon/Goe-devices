@@ -335,7 +335,7 @@ class GOE_Charger(PowerSink):
     def control_mode(self, value):
         self._control_mode = value
         if self.mqtt_connected:
-            self.mqtt_publish(self.mqtt_topic+"/status/control-status", value, retain=True)
+            self.mqtt_publish(self.mqtt_topic+"/status/control-mode", value, retain=True)
 
     def turn_on(self):
         if self.control_mode == "off" or self.control_mode == "solar":
